@@ -6,4 +6,6 @@ export type {
   OrderLine,
   SearchOrderResult,
   OrderFlowRepository,
+  OrderListItem,
+  GetAllOrdersOptions,
 } from "./types";

@@ -1,16 +1,22 @@
 # OS
 .DS_Store
 
+
 # Editors
 .vscode/
 .idea/
 
 # Logs
 *.log
+# Figma
+Order_Tracking_Figma/
 
 # Env
 .env
 .env.*
+
+# Next.js
+.next/
 
 # Python
 __pycache__/

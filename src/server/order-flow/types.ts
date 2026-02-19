@@ -29,7 +29,29 @@ export interface SearchOrderResult {
   last_update_date: string | null;
 }
 
+export interface GetAllOrdersOptions {
+  limit?: number;
+  offset?: number;
+  query?: string;
+}
+
+export interface OrderListItem {
+  customer_order_reference_nbr: string;
+  file_name: string | null;
+  creation_date: string | null;
+  last_update_date: string | null;
+  line_count: number;
+  status: JourneyStatus;
+  // SSP Order fields
+  process_flag: string | null;
+  consignee_code: string | null;
+  consignee_reference: string | null;
+  mark: string | null;
+  ssp_invoice_type: string | null;
+}
+
 export interface OrderFlowRepository {
+  getAllOrders(options?: GetAllOrdersOptions): Promise<OrderListItem[]>;
   getJourney(trackingKey: string): Promise<JourneyStep[]>;
   getOrderLines(trackingKey: string): Promise<OrderLine[]>;
   searchOrders(query: string): Promise<SearchOrderResult[]>;

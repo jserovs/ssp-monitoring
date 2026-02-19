@@ -10,7 +10,8 @@ this project is tend to monitor the SSP transactions
 
 ## Development Notes
 - Use TypeScript for application code (prefer `.ts` / `.tsx` in `src/`).
-- Keep database access behind provider/repository abstractions so development can use SQLite and later switch to Oracle without API-level rewrites.
+- Oracle DB is used for all data access (GVI and GOM pools)
+- Database connection is managed via environment variables (see .env.example)
 
 ## UI and UX
 UI should be able to track the oreders which came in for SSP program and help to track with ease the status of the order, visual representation of order flow, where order is currently what lines it has and help match 

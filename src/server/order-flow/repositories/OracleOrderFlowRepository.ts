@@ -1,6 +1,13 @@
 import { BaseOrderFlowRepository } from "./BaseOrderFlowRepository";
 import { mapFlagsToStatus } from "../status";
-import type { JourneySource, JourneyStep, OrderLine, SearchOrderResult } from "../types";
+import type {
+  JourneySource,
+  JourneyStep,
+  OrderLine,
+  SearchOrderResult,
+  GetAllOrdersOptions,
+  OrderListItem,
+} from "../types";
 
 interface OraclePool {
   getConnection: () => Promise<OracleConnection>;
@@ -37,6 +44,58 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
     private readonly gomPool: OraclePool
   ) {
     super();
+  }
+
+  async getAllOrders(options: GetAllOrdersOptions = {}): Promise<OrderListItem[]> {
+    const limit = Number.isFinite(options.limit) ? Number(options.limit) : 50;
+    const offset = Number.isFinite(options.offset) ? Number(options.offset) : 0;
+    const query = options.query?.trim();
+
+    if (query) {
+      const likeValue = `%${query}%`;
+      const rows = await this.queryGvi(
+        `select
+           customer_order_reference_nbr,
+           file_name,
+           min(creation_date) as creation_date,
+           max(last_update_date) as last_update_date,
+           count(*) as line_count,
+           listagg(process_flag, ',') within group (order by process_flag) as process_flags,
+           max(consignee_code) as consignee_code,
+           max(consignee_reference) as consignee_reference,
+           max(mark) as mark,
+           max(ssp_invoice_type) as ssp_invoice_type
+         from gvi_filewheel_order_interface
+         where customer_order_reference_nbr like :likeValue or file_name like :likeValue
+         group by customer_order_reference_nbr, file_name
+         order by max(last_update_date) desc
+         offset :offsetRows rows fetch next :limitRows rows only`,
+        { likeValue, offsetRows: offset, limitRows: limit }
+      );
+
+      return rows.map((row) => mapOrderListRow(row));
+    }
+
+    const rows = await this.queryGvi(
+      `select
+         customer_order_reference_nbr,
+         file_name,
+         min(creation_date) as creation_date,
+         max(last_update_date) as last_update_date,
+         count(*) as line_count,
+         listagg(process_flag, ',') within group (order by process_flag) as process_flags,
+         max(consignee_code) as consignee_code,
+         max(consignee_reference) as consignee_reference,
+         max(mark) as mark,
+         max(ssp_invoice_type) as ssp_invoice_type
+       from gvi_filewheel_order_interface
+       group by customer_order_reference_nbr, file_name
+       order by 4 desc
+       offset :offsetRows rows fetch next :limitRows rows only`,
+      { offsetRows: offset, limitRows: limit }
+    );
+
+    return rows.map((row) => mapOrderListRow(row));
   }
 
   async getJourney(trackingKey: string): Promise<JourneyStep[]> {
@@ -234,4 +293,23 @@ function toNum(value: unknown): number | null {
   }
   const n = Number(value);
   return Number.isNaN(n) ? null : n;
+}
+
+function mapOrderListRow(row: Record<string, unknown>): OrderListItem {
+  const rawFlags = toStr(row.PROCESS_FLAGS) ?? "";
+  const flags = rawFlags ? rawFlags.split(",") : [];
+
+  return {
+    customer_order_reference_nbr: String(row.CUSTOMER_ORDER_REFERENCE_NBR ?? ""),
+    file_name: toStr(row.FILE_NAME),
+    creation_date: toIso(row.CREATION_DATE),
+    last_update_date: toIso(row.LAST_UPDATE_DATE),
+    line_count: toNum(row.LINE_COUNT) ?? 0,
+    status: mapFlagsToStatus(flags),
+    process_flag: toStr(row.PROCESS_FLAGS),
+    consignee_code: toStr(row.CONSIGNEE_CODE),
+    consignee_reference: toStr(row.CONSIGNEE_REFERENCE),
+    mark: toStr(row.MARK),
+    ssp_invoice_type: toStr(row.SSP_INVOICE_TYPE),
+  };
 }

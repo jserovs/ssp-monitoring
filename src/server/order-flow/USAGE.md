@@ -21,6 +21,12 @@ export async function GET(_request: Request, context: { params: { trackingKey: s
 }
 ```
 
+## Example (orders list page data)
+```ts
+const repository = await createOrderFlowRepository({ provider: process.env.DB_PROVIDER });
+const orders = await repository.getAllOrders({ limit: 50, offset: 0, query: "" });
+```
+
 ## Required packages (when wiring into app)
 - SQLite mode: `better-sqlite3`
 - Oracle mode: `oracledb`
