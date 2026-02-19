@@ -1,0 +1,17 @@
+services:
+  oracle-free:
+    image: gvenzl/oracle-free:23-slim
+    container_name: ssp-oracle-mock
+    ports:
+      - "1521:1521"
+    environment:
+      ORACLE_PASSWORD: oracle
+      APP_USER: app
+      APP_USER_PASSWORD: app
+    volumes:
+      - ./init:/container-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
