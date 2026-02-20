@@ -8,4 +8,5 @@ export type {
   OrderFlowRepository,
   OrderListItem,
   GetAllOrdersOptions,
+  OrderDetails,
 } from "./types";

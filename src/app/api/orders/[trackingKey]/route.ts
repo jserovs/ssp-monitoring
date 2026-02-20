@@ -24,13 +24,15 @@ export async function GET(_request: Request, context: RouteContext) {
       gomPool,
     });
 
-    const [journey, lines] = await Promise.all([
+    const [orderDetails, journey, lines] = await Promise.all([
+      repository.getOrderDetails(trackingKey),
       repository.getJourney(trackingKey),
       repository.getOrderLines(trackingKey),
     ]);
 
     return NextResponse.json({
       trackingKey,
+      orderDetails,
       journey,
       lines,
     });

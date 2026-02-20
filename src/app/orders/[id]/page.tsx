@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
 import { OrderTracking } from "@/components/OrderTracking";
 import { type InterfaceStep, type Order, type OrderLine } from "@/types/orders";
-import { type JourneyStatus, type JourneyStep, type OrderLine as FlowOrderLine } from "@/server/order-flow";
+import { type JourneyStatus, type JourneyStep, type OrderLine as FlowOrderLine, type OrderDetails } from "@/server/order-flow";
 
 interface ApiOrderDetails {
   trackingKey: string;
+  orderDetails: OrderDetails | null;
   journey: JourneyStep[];
   lines: FlowOrderLine[];
 }
@@ -35,6 +36,7 @@ async function getOrder(trackingKey: string): Promise<Order | null> {
 
 function mapOrderResponse(data: ApiOrderDetails): Order {
   const steps = data.journey.map((step) => mapJourneyStep(step, data.lines));
+  const details = data.orderDetails;
 
   const orderDate =
     data.journey.find((step) => step.eventTime)?.eventTime ||
@@ -44,9 +46,9 @@ function mapOrderResponse(data: ApiOrderDetails): Order {
   return {
     id: data.trackingKey,
     orderNumber: data.trackingKey,
-    fileName: null,
-    customerName: "-",
-    creationDate: orderDate,
+    fileName: details?.file_name ?? null,
+    customerName: details?.customer_name ?? "-",
+    creationDate: details?.creation_date ?? orderDate,
     orderDate,
     currentStatus: mapStatus(
       data.journey.find((step) => step.status === "Error")?.status ||
@@ -56,33 +58,44 @@ function mapOrderResponse(data: ApiOrderDetails): Order {
     ),
     steps,
     processFlag: null,
-    consigneeCode: null,
-    consigneeReference: null,
-    mark: null,
-    sspInvoiceType: null,
-    lineCount: data.lines.length,
+    consigneeCode: details?.consignee_code ?? null,
+    consigneeReference: details?.consignee_reference ?? null,
+    mark: details?.mark ?? null,
+    sspInvoiceType: details?.ssp_invoice_type ?? null,
+    lineCount: details?.line_count ?? data.lines.length,
   };
 }
 
 function mapJourneyStep(step: JourneyStep, allLines: FlowOrderLine[]): InterfaceStep {
-  const isInternalStep = 
-    step.payload?.stepKey === "gvi_internal_inbound" || 
-    step.payload?.stepKey === "gvi_internal_outbound";
-  const isFilewheelStep = 
-    step.payload?.stepKey === "gvi_filewheel_ssp" || 
-    step.payload?.stepKey === "gvi_filewheel_normal";
+  const stepKey = step.payload?.stepKey as string | undefined;
+  const program = step.payload?.program as string | undefined;
+  
+  const isInternalStep = stepKey === "gvi_internal_inbound" || stepKey === "gvi_internal_outbound";
+  const isFilewheelStep = stepKey === "gvi_filewheel_ssp" || stepKey === "gvi_filewheel_normal";
 
   let stepLines: FlowOrderLine[] = [];
-  if (isInternalStep) {
+  if (isInternalStep && program) {
+    // Program-specific internal step (after split)
+    stepLines = allLines.filter((line) => line.stage === "GVI_INTERNAL" && line.program === program);
+  } else if (isInternalStep) {
+    // Regular internal step (before split or no split)
     stepLines = allLines.filter((line) => line.stage === "GVI_INTERNAL");
-  } else if (isFilewheelStep) {
-    stepLines = allLines.filter((line) => line.stage === "GVI_FILEWHEEL");
+  } else if (stepKey === "gvi_filewheel_ssp") {
+    stepLines = allLines.filter((line) => line.stage === "GVI_FILEWHEEL" && line.program === "SSP");
+  } else if (stepKey === "gvi_filewheel_normal" && program) {
+    // Program-specific filewheel step (after split)
+    stepLines = allLines.filter((line) => line.stage === "GVI_FILEWHEEL" && line.program === program);
+  } else if (stepKey === "gvi_filewheel_normal") {
+    // Regular filewheel step (before split or no split)
+    stepLines = allLines.filter((line) => line.stage === "GVI_FILEWHEEL" && line.program !== "SSP");
   }
   
-  const lines = stepLines.map(mapOrderLine);
+  const lines = stepLines.map((line, index) => mapOrderLine(line, index));
 
   return {
-    id: String(step.payload?.stepKey || step.step),
+    id: step.payload?.program 
+      ? `${step.payload?.stepKey}-${step.payload.program}` 
+      : String(step.payload?.stepKey || step.step),
     name: step.step,
     description: `${step.sourceDb} processing step`,
     status: mapStatus(step.status),
@@ -98,6 +111,7 @@ function mapJourneyStep(step: JourneyStep, allLines: FlowOrderLine[]): Interface
     },
     proofOfDeliveryUrl: getPayloadString(step.payload, "documentUrl"),
     unimplemented: step.unimplemented,
+    hideLines: step.hideLines,
   };
 }
 
@@ -106,9 +120,9 @@ function getPayloadString(payload: Record<string, unknown>, key: string): string
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
-function mapOrderLine(line: FlowOrderLine): OrderLine {
+function mapOrderLine(line: FlowOrderLine, index: number): OrderLine {
   return {
-    id: `${line.stage}-${line.line_number || "unknown"}`,
+    id: `${line.stage}-${line.line_number || "unknown"}-${index}`,
     itemName: line.item_code || "Unknown item",
     itemCode: line.item_code || "-",
     quantity: line.requested_quantity || 0,

@@ -11,6 +11,7 @@ export interface JourneyStep {
   errorCode: string | null;
   payload: Record<string, unknown>;
   unimplemented?: boolean;
+  hideLines?: boolean;
 }
 
 export interface OrderLine {
@@ -49,10 +50,26 @@ export interface OrderListItem {
   consignee_reference: string | null;
   mark: string | null;
   ssp_invoice_type: string | null;
+  customer_name: string | null;
+}
+
+export interface OrderDetails {
+  customer_order_reference_nbr: string;
+  file_name: string | null;
+  creation_date: string | null;
+  last_update_date: string | null;
+  line_count: number;
+  // SSP Order fields
+  consignee_code: string | null;
+  consignee_reference: string | null;
+  mark: string | null;
+  ssp_invoice_type: string | null;
+  customer_name: string | null;
 }
 
 export interface OrderFlowRepository {
   getAllOrders(options?: GetAllOrdersOptions): Promise<OrderListItem[]>;
+  getOrderDetails(trackingKey: string): Promise<OrderDetails | null>;
   getJourney(trackingKey: string): Promise<JourneyStep[]>;
   getOrderLines(trackingKey: string): Promise<OrderLine[]>;
   searchOrders(query: string): Promise<SearchOrderResult[]>;

@@ -20,7 +20,7 @@ async function getOrders(): Promise<Order[]> {
       id: `${item.customer_order_reference_nbr}-${item.file_name}`,
       orderNumber: item.customer_order_reference_nbr,
       fileName: item.file_name,
-      customerName: "",
+      customerName: item.customer_name ?? "-",
       creationDate: item.creation_date,
       orderDate: item.last_update_date || new Date().toISOString(),
       currentStatus: getStatusText(item.status),

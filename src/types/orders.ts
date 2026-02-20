@@ -25,6 +25,7 @@ export interface InterfaceStep {
   };
   proofOfDeliveryUrl?: string;
   unimplemented?: boolean;
+  hideLines?: boolean;
 }
 
 export interface Order {

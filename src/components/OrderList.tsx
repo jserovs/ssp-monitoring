@@ -33,16 +33,13 @@ export function OrderList({ orders }: OrderListProps) {
                     Order Ref
                   </th>
                   <th className="px-4 py-4 text-left text-sm text-gray-700 font-semibold">
-                    File Name
-                  </th>
-                  <th className="px-4 py-4 text-left text-sm text-gray-700 font-semibold">
-                    Consignee
-                  </th>
-                  <th className="px-4 py-4 text-left text-sm text-gray-700 font-semibold">
-                    Reference
+                    Distributor
                   </th>
                   <th className="px-4 py-4 text-left text-sm text-gray-700 font-semibold">
                     Mark
+                  </th>
+                  <th className="px-4 py-4 text-left text-sm text-gray-700 font-semibold">
+                    Reference
                   </th>
                   <th className="px-4 py-4 text-left text-sm text-gray-700 font-semibold">
                     Invoice Type
@@ -70,17 +67,14 @@ export function OrderList({ orders }: OrderListProps) {
                         {order.orderNumber}
                       </Link>
                     </td>
-                    <td className="px-4 py-4 text-sm text-gray-700">
-                      {order.fileName || "-"}
-                    </td>
-                    <td className="px-4 py-4 text-sm text-gray-700">
-                      {order.consigneeCode || "-"}
-                    </td>
-                    <td className="px-4 py-4 text-sm text-gray-700 max-w-xs truncate" title={order.consigneeReference || ""}>
-                      {order.consigneeReference || "-"}
+                    <td className="px-4 py-4 text-sm text-gray-700 font-medium">
+                      {order.customerName}
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-700 max-w-xs truncate" title={order.mark || ""}>
                       {order.mark || "-"}
+                    </td>
+                    <td className="px-4 py-4 text-sm text-gray-700 max-w-xs truncate" title={order.consigneeReference || ""}>
+                      {order.consigneeReference || "-"}
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-700">
                       {order.sspInvoiceType || "-"}

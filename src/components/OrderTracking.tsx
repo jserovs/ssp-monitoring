@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Order } from "@/types/orders";
+import { Order, InterfaceStep, OrderLine } from "@/types/orders";
 import {
   ArrowLeft,
   ChevronDown,
@@ -134,19 +134,33 @@ export function OrderTracking({ order }: OrderTrackingProps) {
         {/* Order Summary */}
         <Card className="mb-8 p-6 bg-white border-gray-200 shadow-sm">
           <h2 className="text-xl mb-4">Order Information</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="flex items-start gap-3">
               <User className="w-5 h-5 text-indigo-600 mt-1" />
               <div>
-                <div className="text-sm text-gray-500">Customer</div>
+                <div className="text-sm text-gray-500">Distributor</div>
                 <div className="mt-1">{order.customerName}</div>
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <Calendar className="w-5 h-5 text-indigo-600 mt-1" />
+              <User className="w-5 h-5 text-indigo-600 mt-1" />
               <div>
-                <div className="text-sm text-gray-500">Order Date</div>
-                <div className="mt-1">{order.orderDate}</div>
+                <div className="text-sm text-gray-500">Mark</div>
+                <div className="mt-1">{order.mark || "-"}</div>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <User className="w-5 h-5 text-indigo-600 mt-1" />
+              <div>
+                <div className="text-sm text-gray-500">Reference</div>
+                <div className="mt-1">{order.consigneeReference || "-"}</div>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <User className="w-5 h-5 text-indigo-600 mt-1" />
+              <div>
+                <div className="text-sm text-gray-500">Invoice Type</div>
+                <div className="mt-1">{order.sspInvoiceType || "-"}</div>
               </div>
             </div>
           </div>
@@ -154,217 +168,179 @@ export function OrderTracking({ order }: OrderTrackingProps) {
 
         {/* Interface Steps */}
         <div className="space-y-6">
-          {order.steps.map((step, index) => {
-            const colors = getStatusColor(step.status);
-            const isExpanded = expandedSteps.has(step.id);
-            const hasLines = step.lines.length > 0;
-            const isUnimplemented = step.unimplemented;
+          {(() => {
+            const visibleSteps = order.steps;
 
-            return (
-              <div key={step.id} className="relative">
-                {/* Connecting Line */}
-                {index < order.steps.length - 1 && (
-                  <div
-                    className="absolute left-8 top-24 w-0.5 h-12 bg-gradient-to-b from-gray-300 to-gray-200"
-                    style={{ zIndex: 0 }}
-                  />
-                )}
+            const splitIndex = visibleSteps.findIndex((step) => step.id === "order_split");
+            const preSplitSteps = splitIndex > -1 ? visibleSteps.slice(0, splitIndex) : visibleSteps;
+            const postSplitSteps: InterfaceStep[] = [];
+            const branchMap = new Map<string, InterfaceStep[]>();
 
-                <Card
-                  className={`${colors.bg} ${colors.border} border-2 shadow-md hover:shadow-lg transition-all duration-200 ${
-                    isUnimplemented ? "opacity-60" : ""
-                  }`}
-                >
-                  {/* Step Header */}
-                  <div
-                    className={`${isUnimplemented ? "p-3" : "p-6"} cursor-pointer`}
-                    onClick={() => hasLines && !isUnimplemented && toggleStep(step.id)}
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className={`${colors.icon} flex-shrink-0`}>
-                        {getStatusIcon(step.status)}
-                      </div>
+            if (splitIndex > -1) {
+              const afterSplit = visibleSteps.slice(splitIndex + 1);
+              for (const step of afterSplit) {
+                const programMatch = step.name.match(/\(([A-Z0-9]+)\)$/);
+                const program = programMatch ? programMatch[1] : "";
+                if (!program) {
+                  postSplitSteps.push(step);
+                  continue;
+                }
+                if (!branchMap.has(program)) {
+                  branchMap.set(program, []);
+                }
+                branchMap.get(program)!.push(step);
+              }
+            }
 
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-4 mb-2">
-                          <div>
-                            <h3 className={`${isUnimplemented ? "text-base" : "text-xl"} ${colors.text}`}>
-                              {step.name}
-                            </h3>
-                            {!isUnimplemented && (
-                              <p className="text-sm text-gray-600 mt-1">
-                                {step.description}
-                              </p>
+            const branchGroups = Array.from(branchMap.entries()).map(([programName, steps]) => ({
+              programName,
+              steps,
+            }));
+
+            const renderStep = (step: InterfaceStep, index: number, totalSteps: number, isBranch = false) => {
+              const colors = getStatusColor(step.status);
+              const isExpanded = expandedSteps.has(step.id);
+              const hasLines = step.lines.length > 0 && !step.hideLines && !step.proofOfDeliveryUrl;
+              const isUnimplemented = step.unimplemented;
+              const isSplitIndicator = step.id === "order_split";
+
+              return (
+                <div key={step.id} className={`relative ${isBranch ? '' : ''}`}>
+                  {!isBranch && index < totalSteps - 1 && !isSplitIndicator && (
+                    <div className="absolute left-8 top-24 w-0.5 h-12 bg-gradient-to-b from-gray-300 to-gray-200" style={{ zIndex: 0 }} />
+                  )}
+                  
+                  <Card className={`${colors.bg} ${colors.border} border-2 shadow-md hover:shadow-lg transition-all duration-200 ${isUnimplemented ? "opacity-60" : ""} ${isSplitIndicator ? "bg-indigo-50 border-indigo-300" : ""}`}>
+                    <div className={`${isUnimplemented ? "p-3" : "p-6"} ${hasLines && !isUnimplemented ? "cursor-pointer" : ""}`} onClick={() => hasLines && !isUnimplemented && toggleStep(step.id)}>
+                      <div className="flex items-start gap-4">
+                        <div className={`${colors.icon} flex-shrink-0`}>{getStatusIcon(step.status)}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-4 mb-2">
+                            <div>
+                              <h3 className={`${isUnimplemented ? "text-base" : "text-lg"} ${colors.text} ${isSplitIndicator ? "font-bold text-indigo-700" : ""}`}>
+                                {step.name}
+                              </h3>
+                              {!isUnimplemented && step.description && (
+                                <p className="text-sm text-gray-600 mt-1">{step.description}</p>
+                              )}
+                            </div>
+                            {hasLines && !isUnimplemented && (
+                              <button className={`${colors.text} p-1 hover:bg-white/50 rounded transition-colors`}>
+                                {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                              </button>
                             )}
                           </div>
-                          {hasLines && !isUnimplemented && (
-                            <button
-                              className={`${colors.text} p-1 hover:bg-white/50 rounded transition-colors`}
-                            >
-                              {isExpanded ? (
-                                <ChevronUp className="w-5 h-5" />
-                              ) : (
-                                <ChevronDown className="w-5 h-5" />
+                          {!isUnimplemented && (
+                            <div className="flex gap-4 mt-3">
+                              <div className="bg-white/60 rounded-lg px-3 py-2 border border-gray-200">
+                                <div className="text-xs text-gray-500">Status</div>
+                                <div className={`mt-1 ${colors.text} capitalize`}>{step.status}</div>
+                              </div>
+                              {step.startTime && (
+                                <div className="bg-white/60 rounded-lg px-3 py-2 border border-gray-200">
+                                  <div className="text-xs text-gray-500">Time</div>
+                                  <div className="mt-1 text-sm">{step.startTime}</div>
+                                </div>
                               )}
-                            </button>
+                            </div>
+                          )}
+                          {(step.metadata.errorCount > 0 || step.metadata.warningCount > 0) && (
+                            <div className="flex gap-3 mt-4">
+                              {step.metadata.errorCount > 0 && (
+                                <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300">
+                                  {step.metadata.errorCount} Error{step.metadata.errorCount !== 1 ? "s" : ""}
+                                </Badge>
+                              )}
+                              {step.metadata.warningCount > 0 && (
+                                <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300">
+                                  {step.metadata.warningCount} Warning{step.metadata.warningCount !== 1 ? "s" : ""}
+                                </Badge>
+                              )}
+                            </div>
+                          )}
+                          {step.proofOfDeliveryUrl && (
+                            <div className="mt-4">
+                              <a href={step.proofOfDeliveryUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-md border border-indigo-300 bg-white px-3 py-2 text-sm text-indigo-700 hover:bg-indigo-50" onClick={e => e.stopPropagation()}>
+                                <FileText className="w-4 h-4" />Open POD PDF
+                              </a>
+                            </div>
                           )}
                         </div>
-
-                        {/* Step Metadata */}
-                        {!isUnimplemented && (
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                            <div className="bg-white/60 rounded-lg p-3 border border-gray-200">
-                              <div className="text-xs text-gray-500">Status</div>
-                              <div className={`mt-1 ${colors.text} capitalize`}>
-                                {step.status}
-                              </div>
-                            </div>
-                            <div className="bg-white/60 rounded-lg p-3 border border-gray-200">
-                              <div className="text-xs text-gray-500">Progress</div>
-                              <div className="mt-1">
-                                {step.metadata.processedLines} /{" "}
-                                {step.metadata.totalLines} lines
-                              </div>
-                            </div>
-                            {step.startTime && (
-                              <div className="bg-white/60 rounded-lg p-3 border border-gray-200">
-                                <div className="text-xs text-gray-500">
-                                  Start Time
-                                </div>
-                                <div className="mt-1 text-sm">
-                                  {step.startTime}
-                                </div>
-                              </div>
-                            )}
-                            {step.duration && (
-                              <div className="bg-white/60 rounded-lg p-3 border border-gray-200">
-                                <div className="text-xs text-gray-500">
-                                  Duration
-                                </div>
-                                <div className="mt-1">{step.duration}</div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Error/Warning Counts */}
-                        {(step.metadata.errorCount > 0 ||
-                          step.metadata.warningCount > 0) && (
-                          <div className="flex gap-3 mt-4">
-                            {step.metadata.errorCount > 0 && (
-                              <Badge
-                                variant="outline"
-                                className="bg-red-100 text-red-700 border-red-300"
-                              >
-                                {step.metadata.errorCount} Error
-                                {step.metadata.errorCount !== 1 ? "s" : ""}
-                              </Badge>
-                            )}
-                            {step.metadata.warningCount > 0 && (
-                              <Badge
-                                variant="outline"
-                                className="bg-amber-100 text-amber-700 border-amber-300"
-                              >
-                                {step.metadata.warningCount} Warning
-                                {step.metadata.warningCount !== 1 ? "s" : ""}
-                              </Badge>
-                            )}
-                          </div>
-                        )}
-
-                        {step.proofOfDeliveryUrl && (
-                          <div className="mt-4">
-                            <a
-                              href={step.proofOfDeliveryUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-2 rounded-md border border-indigo-300 bg-white px-3 py-2 text-sm text-indigo-700 hover:bg-indigo-50 transition-colors"
-                              onClick={(event) => event.stopPropagation()}
-                            >
-                              <FileText className="w-4 h-4" />
-                              Open POD PDF
-                            </a>
-                          </div>
-                        )}
                       </div>
                     </div>
-                  </div>
-
-                  {/* Expandable Lines Section */}
-                  {isExpanded && hasLines && (
-                    <div className="px-6 pb-6">
-                      <div className="border-t border-gray-300 pt-4">
-                        <h4 className="mb-3">Order Lines</h4>
-                        <div className="space-y-3">
-                          {step.lines.map((line) => (
-                            <div
-                              key={line.id}
-                              className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm"
-                            >
-                              <div className="flex items-start justify-between gap-4">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-3 mb-2">
-                                    <h5 className="text-gray-900">
-                                      {line.itemName}
-                                    </h5>
-                                    <Badge
-                                      variant="outline"
-                                      className={getLineStatusColor(line.status)}
-                                    >
-                                      {line.status}
-                                    </Badge>
-                                  </div>
-                                  <div className="grid grid-cols-3 gap-4 text-sm">
-                                    <div>
-                                      <span className="text-gray-500">
-                                        Item Code:
-                                      </span>
-                                      <span className="ml-2 text-gray-900">
-                                        {line.itemCode}
-                                      </span>
+                    {isExpanded && hasLines && (
+                      <div className="px-6 pb-6">
+                        <div className="border-t border-gray-300 pt-4">
+                          <h4 className="mb-3">Order Lines</h4>
+                          <div className="space-y-3">
+                            {step.lines.map((line: OrderLine) => (
+                              <div key={line.id} className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+                                <div className="flex items-start justify-between gap-4">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-3 mb-2">
+                                      <h5 className="text-gray-900">{line.itemName}</h5>
+                                      <Badge variant="outline" className={getLineStatusColor(line.status)}>{line.status}</Badge>
                                     </div>
-                                    <div>
-                                      <span className="text-gray-500">
-                                        Quantity:
-                                      </span>
-                                      <span className="ml-2 text-gray-900">
-                                        {line.quantity}
-                                      </span>
+                                    <div className="grid grid-cols-3 gap-4 text-sm">
+                                      <div><span className="text-gray-500">Item:</span><span className="ml-2 text-gray-900">{line.itemCode}</span></div>
+                                      <div><span className="text-gray-500">Qty:</span><span className="ml-2 text-gray-900">{line.quantity}</span></div>
+                                      <div><span className="text-gray-500">Updated:</span><span className="ml-2 text-gray-900">{line.lastUpdated}</span></div>
                                     </div>
-                                    <div>
-                                      <span className="text-gray-500">
-                                        Last Updated:
-                                      </span>
-                                      <span className="ml-2 text-gray-900">
-                                        {line.lastUpdated}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  {line.errorMessage && (
-                                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
-                                      <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
-                                      <div>
-                                        <div className="text-sm text-red-900">
-                                          Error Details:
-                                        </div>
-                                        <div className="text-sm text-red-700 mt-1">
-                                          {line.errorMessage}
-                                        </div>
+                                    {line.errorMessage && (
+                                      <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+                                        <AlertCircle className="w-4 h-4 text-red-600 mt-0.5" />
+                                        <div className="text-sm text-red-700">{line.errorMessage}</div>
                                       </div>
-                                    </div>
-                                  )}
+                                    )}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
                       </div>
+                    )}
+                  </Card>
+                </div>
+              );
+            };
+
+            return (
+              <>
+                {preSplitSteps.map((step, idx) => renderStep(step, idx, preSplitSteps.length))}
+                
+                {branchGroups.length > 0 && (
+                  <Card className="bg-indigo-50 border-indigo-300 border-2 shadow-md">
+                    <div className="p-6">
+                      <div className="flex items-center gap-3 mb-4">
+                        <Package className="w-6 h-6 text-indigo-600" />
+                        <h3 className="text-xl font-bold text-indigo-700">Order Split ({branchGroups.length} branches)</h3>
+                      </div>
+                      <div className="flex flex-wrap gap-4">
+                        {branchGroups.map((branch, branchIdx) => {
+                          const programName = branch.programName || `Branch ${branchIdx + 1}`;
+                          return (
+                            <div key={branchIdx} className="bg-white rounded-lg border-2 border-indigo-200 p-4 min-w-[300px] flex-1">
+                              <div className="text-sm font-semibold text-indigo-700 mb-3">{programName}</div>
+                              <div className="space-y-3">
+                                {branch.steps.map((step, stepIdx) => (
+                                  <div key={step.id} className="border rounded-lg overflow-hidden">
+                                    {renderStep(step, stepIdx, branch.steps.length, true)}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  )}
-                </Card>
-              </div>
+                  </Card>
+                )}
+                
+                {postSplitSteps.map((step, idx) => renderStep(step, idx, postSplitSteps.length))}
+              </>
             );
-          })}
+          })()}
         </div>
 
         {/* Help Text */}
