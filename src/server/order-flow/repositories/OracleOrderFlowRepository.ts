@@ -29,9 +29,18 @@ interface JourneyStepDef {
   unimplemented?: boolean;
 }
 
+interface ComputedStep {
+  status: "Completed" | "In Progress" | "Error" | "Not Reached";
+  eventTime: string | Date | null;
+  lineCount: number | null;
+  errorCode: string | null;
+  payload?: Record<string, unknown>;
+}
+
 const JOURNEY_STEPS: JourneyStepDef[] = [
   { key: "file_received", name: "File Received", sourceDb: "FILE", unimplemented: true },
-  { key: "soa_archived", name: "SOA Archived", sourceDb: "SOA", unimplemented: true },
+  { key: "soa_processed", name: "SOA Processed", sourceDb: "FILE", unimplemented: true },
+  { key: "proof_of_delivery", name: "Proof Of Delivery", sourceDb: "FILE" },
   { key: "gvi_filewheel_ssp", name: "GVI Filewheel (SSP)", sourceDb: "GVI" },
   { key: "gvi_filewheel_normal", name: "GVI Filewheel (non-SSP)", sourceDb: "GVI" },
   { key: "gvi_internal_inbound", name: "GVI Internal (GVI Validation)", sourceDb: "GVI" },
@@ -138,18 +147,29 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
       { trackingKey }
     );
 
-    const computed = {
+    const proofOfDeliveryUrl = "/api/mock-files/order1.pdf";
+
+    const computed: Record<string, ComputedStep> = {
       file_received: {
-        status: "Not Reached" as const,
+        status: "Not Reached",
         eventTime: null,
         lineCount: null,
         errorCode: null,
       },
-      soa_archived: {
-        status: "Not Reached" as const,
+      soa_processed: {
+        status: "Not Reached",
         eventTime: null,
         lineCount: null,
         errorCode: null,
+      },
+      proof_of_delivery: {
+        status: sspRows.length > 0 ? "Completed" : "Not Reached",
+        eventTime: latestTime([...sspRows, ...outboundRows], ["LAST_UPDATE_DATE", "CREATION_DATE"]),
+        lineCount: null,
+        errorCode: null,
+        payload: {
+          documentUrl: proofOfDeliveryUrl,
+        },
       },
       gvi_filewheel_ssp: this.buildStep(sspRows),
       gvi_filewheel_normal: this.buildStep(nonSspRows),
@@ -163,16 +183,19 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
       },
     };
 
-    return JOURNEY_STEPS.map((step) => ({
-      step: step.name,
-      sourceDb: step.sourceDb,
-      status: computed[step.key as keyof typeof computed].status,
-      eventTime: toIso(computed[step.key as keyof typeof computed].eventTime),
-      lineCount: computed[step.key as keyof typeof computed].lineCount,
-      errorCode: computed[step.key as keyof typeof computed].errorCode,
-      payload: { stepKey: step.key },
-      unimplemented: step.unimplemented,
-    }));
+    return JOURNEY_STEPS.map((step) => {
+      const computedStep = computed[step.key];
+      return {
+        step: step.name,
+        sourceDb: step.sourceDb,
+        status: computedStep.status,
+        eventTime: toIso(computedStep.eventTime),
+        lineCount: computedStep.lineCount,
+        errorCode: computedStep.errorCode,
+        payload: { stepKey: step.key, ...(computedStep.payload ?? {}) },
+        unimplemented: step.unimplemented,
+      };
+    });
   }
 
   async getOrderLines(trackingKey: string): Promise<OrderLine[]> {
