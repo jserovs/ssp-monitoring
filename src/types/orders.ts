@@ -23,6 +23,7 @@ export interface InterfaceStep {
     errorCount: number;
     warningCount: number;
   };
+  proofOfDeliveryUrl?: string;
   unimplemented?: boolean;
 }
 

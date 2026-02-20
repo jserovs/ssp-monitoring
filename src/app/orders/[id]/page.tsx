@@ -96,8 +96,14 @@ function mapJourneyStep(step: JourneyStep, allLines: FlowOrderLine[]): Interface
       errorCount: step.status === "Error" ? 1 : 0,
       warningCount: 0,
     },
+    proofOfDeliveryUrl: getPayloadString(step.payload, "documentUrl"),
     unimplemented: step.unimplemented,
   };
+}
+
+function getPayloadString(payload: Record<string, unknown>, key: string): string | undefined {
+  const value = payload[key];
+  return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
 function mapOrderLine(line: FlowOrderLine): OrderLine {

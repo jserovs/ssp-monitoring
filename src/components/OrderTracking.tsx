@@ -15,6 +15,7 @@ import {
   Package,
   User,
   Calendar,
+  FileText,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -268,6 +269,21 @@ export function OrderTracking({ order }: OrderTrackingProps) {
                                 {step.metadata.warningCount !== 1 ? "s" : ""}
                               </Badge>
                             )}
+                          </div>
+                        )}
+
+                        {step.proofOfDeliveryUrl && (
+                          <div className="mt-4">
+                            <a
+                              href={step.proofOfDeliveryUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 rounded-md border border-indigo-300 bg-white px-3 py-2 text-sm text-indigo-700 hover:bg-indigo-50 transition-colors"
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              <FileText className="w-4 h-4" />
+                              Open POD PDF
+                            </a>
                           </div>
                         )}
                       </div>
