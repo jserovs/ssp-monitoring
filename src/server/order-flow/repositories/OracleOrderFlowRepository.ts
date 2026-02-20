@@ -206,7 +206,7 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
     const hasSplit = programs.length > 0;
 
     const gomRows = await this.queryGom(
-      `select oeoh.creation_date as creation_date, oeol.creation_date as line_creation_date, oeoh.flow_status_code as flow_status_code
+      `select oeoh.creation_date as creation_date, oeol.creation_date as line_creation_date, oeoh.flow_status_code as flow_status_code, oeoh.attribute13 as attribute13
        from oe_order_headers_all oeoh
        join oe_order_lines_all oeol on oeoh.header_id = oeol.header_id
        where oeoh.cust_po_number = :trackingKey`,
@@ -243,12 +243,24 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
       gvi_internal_inbound: this.buildStep(inboundRows),
       gvi_internal_outbound: this.buildStep(outboundRows),
       gom_order_statas: {
-        status: "Not Reached" as const,
+        status: this.buildGomStep(gomRows).status,
         eventTime: latestTime(gomRows, ["LINE_CREATION_DATE", "CREATION_DATE"]),
         lineCount: gomRows.length,
         errorCode: null,
       },
     };
+
+    const gomRowsByProgram = gomRows.reduce<Record<string, Array<Record<string, unknown>>>>((acc, row) => {
+      const program = extractProgramFromAttribute13(row.ATTRIBUTE13);
+      if (!program) {
+        return acc;
+      }
+      if (!acc[program]) {
+        acc[program] = [];
+      }
+      acc[program].push(row);
+      return acc;
+    }, {});
 
     // Build journey steps dynamically
     const journeySteps: JourneyStep[] = [];
@@ -330,6 +342,7 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
       for (const program of programs) {
         const programInboundRows = inboundRows.filter(r => toStr(r.PROGRAM) === program);
         const programOutboundRows = outboundRows.filter(r => toStr(r.PROGRAM) === program);
+        const programGomRows = gomRowsByProgram[program] ?? [];
 
         journeySteps.push({
           step: `GVI Validation (${program})`,
@@ -349,6 +362,16 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
           lineCount: programOutboundRows.length,
           errorCode: null,
           payload: { stepKey: "gvi_internal_outbound", program },
+        });
+
+        journeySteps.push({
+          step: `GOM Order Status (${program})`,
+          sourceDb: "GOM",
+          status: this.buildGomStep(programGomRows).status,
+          eventTime: toIso(latestTime(programGomRows, ["LINE_CREATION_DATE", "CREATION_DATE"])),
+          lineCount: programGomRows.length,
+          errorCode: null,
+          payload: { stepKey: "gom_order_statas", program },
         });
       }
     } else {
@@ -383,18 +406,18 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
         errorCode: computed.gvi_internal_outbound.errorCode,
         payload: { stepKey: "gvi_internal_outbound" },
       });
+      
+      // No split - add single GOM step
+      journeySteps.push({
+        step: "GOM Order Status",
+        sourceDb: "GOM",
+        status: computed.gom_order_statas.status,
+        eventTime: toIso(computed.gom_order_statas.eventTime),
+        lineCount: computed.gom_order_statas.lineCount,
+        errorCode: computed.gom_order_statas.errorCode,
+        payload: { stepKey: "gom_order_statas" },
+      });
     }
-
-    // Add GOM step
-    journeySteps.push({
-      step: "GOM Order Status",
-      sourceDb: "GOM",
-      status: computed.gom_order_statas.status,
-      eventTime: toIso(computed.gom_order_statas.eventTime),
-      lineCount: computed.gom_order_statas.lineCount,
-      errorCode: computed.gom_order_statas.errorCode,
-      payload: { stepKey: "gom_order_statas" },
-    });
 
     return journeySteps;
   }
@@ -402,7 +425,7 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
   async getOrderLines(trackingKey: string): Promise<OrderLine[]> {
     const [internalRows, filewheelRows] = await Promise.all([
       this.queryGvi(
-        `select program, line_number, process_flag, error_code, item_code, requested_quantity, last_update_date
+        `select program, direction, line_number, process_flag, error_code, item_code, requested_quantity, last_update_date
          from gvi_internal_order_interface
          where customer_order_reference_nbr = :trackingKey
          order by line_number`,
@@ -420,6 +443,7 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
     const internalLines = internalRows.map((row) => ({
       stage: "GVI_INTERNAL" as const,
       program: toStr(row.PROGRAM),
+      direction: toStr(row.DIRECTION),
       line_number: toStr(row.LINE_NUMBER),
       process_flag: toStr(row.PROCESS_FLAG),
       error_code: toStr(row.ERROR_CODE),
@@ -431,6 +455,7 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
     const filewheelLines = filewheelRows.map((row) => ({
       stage: "GVI_FILEWHEEL" as const,
       program: toStr(row.PROGRAM),
+      direction: null,
       line_number: toStr(row.LINE_NUMBER),
       process_flag: toStr(row.PROCESS_FLAG),
       error_code: toStr(row.ERROR_CODE),
@@ -501,6 +526,24 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
       errorCode: errorCodeRow ? toStr(errorCodeRow.ERROR_CODE) : null,
     };
   }
+
+  private buildGomStep(rows: Array<Record<string, unknown>>) {
+    if (rows.length === 0) {
+      return {
+        status: "Not Reached" as const,
+      };
+    }
+
+    const flowStatuses = rows
+      .map((row) => toStr(row.FLOW_STATUS_CODE))
+      .filter((value): value is string => Boolean(value))
+      .map((value) => value.toUpperCase());
+
+    const allClosed = flowStatuses.length > 0 && flowStatuses.every((status) => status === "CLOSED");
+    return {
+      status: allClosed ? ("Completed" as const) : ("In Progress" as const),
+    };
+  }
 }
 
 function latestTime(rows: Array<Record<string, unknown>>, keys: string[]) {
@@ -553,6 +596,20 @@ function toNum(value: unknown): number | null {
   }
   const n = Number(value);
   return Number.isNaN(n) ? null : n;
+}
+
+function extractProgramFromAttribute13(value: unknown): string | null {
+  const text = toStr(value);
+  if (!text) {
+    return null;
+  }
+
+  const match = text.match(/PROGRAM:\s*([^;]+)/i);
+  if (!match?.[1]) {
+    return null;
+  }
+
+  return match[1].trim().toUpperCase();
 }
 
 // Customer name lookup - can be replaced with database query later

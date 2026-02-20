@@ -17,6 +17,7 @@ export interface JourneyStep {
 export interface OrderLine {
   stage: string;
   program: string | null;
+  direction: string | null;
   line_number: string | null;
   process_flag: string | null;
   error_code: string | null;

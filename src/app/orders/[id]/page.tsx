@@ -69,17 +69,26 @@ function mapOrderResponse(data: ApiOrderDetails): Order {
 function mapJourneyStep(step: JourneyStep, allLines: FlowOrderLine[]): InterfaceStep {
   const stepKey = step.payload?.stepKey as string | undefined;
   const program = step.payload?.program as string | undefined;
-  
   const isInternalStep = stepKey === "gvi_internal_inbound" || stepKey === "gvi_internal_outbound";
-  const isFilewheelStep = stepKey === "gvi_filewheel_ssp" || stepKey === "gvi_filewheel_normal";
 
   let stepLines: FlowOrderLine[] = [];
   if (isInternalStep && program) {
-    // Program-specific internal step (after split)
-    stepLines = allLines.filter((line) => line.stage === "GVI_INTERNAL" && line.program === program);
+    const directionFilter = stepKey === "gvi_internal_outbound" ? "OUTBOUND" : null;
+    // Program-specific internal step (after split): filter by program + direction
+    stepLines = allLines.filter(
+      (line) =>
+        line.stage === "GVI_INTERNAL" &&
+        line.program === program &&
+        (directionFilter === null ? line.direction === null : line.direction === directionFilter)
+    );
   } else if (isInternalStep) {
-    // Regular internal step (before split or no split)
-    stepLines = allLines.filter((line) => line.stage === "GVI_INTERNAL");
+    const directionFilter = stepKey === "gvi_internal_outbound" ? "OUTBOUND" : null;
+    // Regular internal step (before split or no split): filter by direction
+    stepLines = allLines.filter(
+      (line) =>
+        line.stage === "GVI_INTERNAL" &&
+        (directionFilter === null ? line.direction === null : line.direction === directionFilter)
+    );
   } else if (stepKey === "gvi_filewheel_ssp") {
     stepLines = allLines.filter((line) => line.stage === "GVI_FILEWHEEL" && line.program === "SSP");
   } else if (stepKey === "gvi_filewheel_normal" && program) {
