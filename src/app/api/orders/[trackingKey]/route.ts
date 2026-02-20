@@ -11,7 +11,6 @@ interface RouteContext {
 export async function GET(_request: Request, context: RouteContext) {
   const params = await context.params;
   const trackingKey = params.trackingKey?.trim();
-
   if (!trackingKey) {
     return NextResponse.json({ error: "trackingKey is required" }, { status: 400 });
   }

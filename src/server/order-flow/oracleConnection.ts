@@ -24,8 +24,8 @@ function getGomConfig(): OracleConfig {
 
 export async function createGviPool() {
   const config = getGviConfig();
-  //todo
-  console.log("Creating GVI pool:", config);
+  //DEBUG
+  // console.log("Creating GVI pool:", config);
   
   if (!config.user || !config.password || !config.connectString) {
     throw new Error("GVI Oracle database configuration is missing. Please set GVI_DB_USER, GVI_DB_PASSWORD, and GVI_DB_CONNECT_STRING environment variables.");

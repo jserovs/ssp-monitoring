@@ -21,12 +21,9 @@ async function getOrders(): Promise<Order[]> {
       orderNumber: item.customer_order_reference_nbr,
       fileName: item.file_name,
       customerName: "",
-      customerEmail: "",
       creationDate: item.creation_date,
       orderDate: item.last_update_date || new Date().toISOString(),
-      totalAmount: 0,
       currentStatus: getStatusText(item.status),
-      priority: getPriority(item.status),
       steps: [],
       processFlag: item.process_flag,
       consigneeCode: item.consignee_code,
@@ -53,17 +50,6 @@ function getStatusText(status: JourneyStatus): string {
       return "Pending";
     default:
       return "Unknown";
-  }
-}
-
-function getPriority(status: JourneyStatus): "low" | "medium" | "high" {
-  switch (status) {
-    case "Error":
-      return "high";
-    case "Completed":
-      return "low";
-    default:
-      return "medium";
   }
 }
 

@@ -14,9 +14,7 @@ import {
   Circle,
   Package,
   User,
-  Mail,
   Calendar,
-  DollarSign,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -129,25 +127,13 @@ export function OrderTracking({ order }: OrderTrackingProps) {
                 Track your order through each processing stage
               </p>
             </div>
-            <Badge
-              variant="outline"
-              className={
-                order.priority === "high"
-                  ? "bg-red-100 text-red-700 border-red-300"
-                  : order.priority === "medium"
-                  ? "bg-amber-100 text-amber-700 border-amber-300"
-                  : "bg-blue-100 text-blue-700 border-blue-300"
-              }
-            >
-              {order.priority.toUpperCase()} PRIORITY
-            </Badge>
           </div>
         </div>
 
         {/* Order Summary */}
         <Card className="mb-8 p-6 bg-white border-gray-200 shadow-sm">
           <h2 className="text-xl mb-4">Order Information</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
             <div className="flex items-start gap-3">
               <User className="w-5 h-5 text-indigo-600 mt-1" />
               <div>
@@ -156,26 +142,10 @@ export function OrderTracking({ order }: OrderTrackingProps) {
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <Mail className="w-5 h-5 text-indigo-600 mt-1" />
-              <div>
-                <div className="text-sm text-gray-500">Email</div>
-                <div className="mt-1">{order.customerEmail}</div>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
               <Calendar className="w-5 h-5 text-indigo-600 mt-1" />
               <div>
                 <div className="text-sm text-gray-500">Order Date</div>
                 <div className="mt-1">{order.orderDate}</div>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <DollarSign className="w-5 h-5 text-indigo-600 mt-1" />
-              <div>
-                <div className="text-sm text-gray-500">Total Amount</div>
-                <div className="mt-1">
-                  ${order.totalAmount.toLocaleString()}
-                </div>
               </div>
             </div>
           </div>
@@ -187,6 +157,7 @@ export function OrderTracking({ order }: OrderTrackingProps) {
             const colors = getStatusColor(step.status);
             const isExpanded = expandedSteps.has(step.id);
             const hasLines = step.lines.length > 0;
+            const isUnimplemented = step.unimplemented;
 
             return (
               <div key={step.id} className="relative">
@@ -199,12 +170,14 @@ export function OrderTracking({ order }: OrderTrackingProps) {
                 )}
 
                 <Card
-                  className={`${colors.bg} ${colors.border} border-2 shadow-md hover:shadow-lg transition-all duration-200`}
+                  className={`${colors.bg} ${colors.border} border-2 shadow-md hover:shadow-lg transition-all duration-200 ${
+                    isUnimplemented ? "opacity-60" : ""
+                  }`}
                 >
                   {/* Step Header */}
                   <div
-                    className="p-6 cursor-pointer"
-                    onClick={() => hasLines && toggleStep(step.id)}
+                    className={`${isUnimplemented ? "p-3" : "p-6"} cursor-pointer`}
+                    onClick={() => hasLines && !isUnimplemented && toggleStep(step.id)}
                   >
                     <div className="flex items-start gap-4">
                       <div className={`${colors.icon} flex-shrink-0`}>
@@ -214,14 +187,16 @@ export function OrderTracking({ order }: OrderTrackingProps) {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-4 mb-2">
                           <div>
-                            <h3 className={`text-xl ${colors.text}`}>
+                            <h3 className={`${isUnimplemented ? "text-base" : "text-xl"} ${colors.text}`}>
                               {step.name}
                             </h3>
-                            <p className="text-sm text-gray-600 mt-1">
-                              {step.description}
-                            </p>
+                            {!isUnimplemented && (
+                              <p className="text-sm text-gray-600 mt-1">
+                                {step.description}
+                              </p>
+                            )}
                           </div>
-                          {hasLines && (
+                          {hasLines && !isUnimplemented && (
                             <button
                               className={`${colors.text} p-1 hover:bg-white/50 rounded transition-colors`}
                             >
@@ -235,39 +210,41 @@ export function OrderTracking({ order }: OrderTrackingProps) {
                         </div>
 
                         {/* Step Metadata */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                          <div className="bg-white/60 rounded-lg p-3 border border-gray-200">
-                            <div className="text-xs text-gray-500">Status</div>
-                            <div className={`mt-1 ${colors.text} capitalize`}>
-                              {step.status}
-                            </div>
-                          </div>
-                          <div className="bg-white/60 rounded-lg p-3 border border-gray-200">
-                            <div className="text-xs text-gray-500">Progress</div>
-                            <div className="mt-1">
-                              {step.metadata.processedLines} /{" "}
-                              {step.metadata.totalLines} lines
-                            </div>
-                          </div>
-                          {step.startTime && (
+                        {!isUnimplemented && (
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
                             <div className="bg-white/60 rounded-lg p-3 border border-gray-200">
-                              <div className="text-xs text-gray-500">
-                                Start Time
-                              </div>
-                              <div className="mt-1 text-sm">
-                                {step.startTime}
+                              <div className="text-xs text-gray-500">Status</div>
+                              <div className={`mt-1 ${colors.text} capitalize`}>
+                                {step.status}
                               </div>
                             </div>
-                          )}
-                          {step.duration && (
                             <div className="bg-white/60 rounded-lg p-3 border border-gray-200">
-                              <div className="text-xs text-gray-500">
-                                Duration
+                              <div className="text-xs text-gray-500">Progress</div>
+                              <div className="mt-1">
+                                {step.metadata.processedLines} /{" "}
+                                {step.metadata.totalLines} lines
                               </div>
-                              <div className="mt-1">{step.duration}</div>
                             </div>
-                          )}
-                        </div>
+                            {step.startTime && (
+                              <div className="bg-white/60 rounded-lg p-3 border border-gray-200">
+                                <div className="text-xs text-gray-500">
+                                  Start Time
+                                </div>
+                                <div className="mt-1 text-sm">
+                                  {step.startTime}
+                                </div>
+                              </div>
+                            )}
+                            {step.duration && (
+                              <div className="bg-white/60 rounded-lg p-3 border border-gray-200">
+                                <div className="text-xs text-gray-500">
+                                  Duration
+                                </div>
+                                <div className="mt-1">{step.duration}</div>
+                              </div>
+                            )}
+                          </div>
+                        )}
 
                         {/* Error/Warning Counts */}
                         {(step.metadata.errorCount > 0 ||

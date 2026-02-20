@@ -26,16 +26,17 @@ interface JourneyStepDef {
   key: string;
   name: string;
   sourceDb: JourneySource;
+  unimplemented?: boolean;
 }
 
 const JOURNEY_STEPS: JourneyStepDef[] = [
-  { key: "file_received", name: "File Received", sourceDb: "FILE" },
-  { key: "soa_archived", name: "SOA Archived", sourceDb: "SOA" },
-  { key: "gvi_ssp", name: "GVI Filewheel (SSP)", sourceDb: "GVI" },
-  { key: "gvi_non_ssp", name: "GVI Filewheel (non-SSP)", sourceDb: "GVI" },
-  { key: "gvi_internal_inbound", name: "GVI Internal (inbound)", sourceDb: "GVI" },
-  { key: "gvi_internal_outbound", name: "GVI Internal (OUTBOUND)", sourceDb: "GVI" },
-  { key: "gom_order_created", name: "GOM Order Created", sourceDb: "GOM" },
+  { key: "file_received", name: "File Received", sourceDb: "FILE", unimplemented: true },
+  { key: "soa_archived", name: "SOA Archived", sourceDb: "SOA", unimplemented: true },
+  { key: "gvi_filewheel_ssp", name: "GVI Filewheel (SSP)", sourceDb: "GVI" },
+  { key: "gvi_filewheel_normal", name: "GVI Filewheel (non-SSP)", sourceDb: "GVI" },
+  { key: "gvi_internal_inbound", name: "GVI Internal (GVI Validation)", sourceDb: "GVI" },
+  { key: "gvi_internal_outbound", name: "GVI Internal (GVI Outbound)", sourceDb: "GVI" },
+  { key: "gom_order_statas", name: "GOM Order Status", sourceDb: "GOM" },
 ];
 
 export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
@@ -53,6 +54,8 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
 
     if (query) {
       const likeValue = `%${query}%`;
+      //DEBUG
+      console.log("query:", likeValue);
       const rows = await this.queryGvi(
         `select
            customer_order_reference_nbr,
@@ -128,7 +131,7 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
     );
 
     const gomRows = await this.queryGom(
-      `select oeoh.creation_date as creation_date, oeol.creation_date as line_creation_date
+      `select oeoh.creation_date as creation_date, oeol.creation_date as line_creation_date, oeoh.flow_status_code as flow_status_code
        from oe_order_headers_all oeoh
        join oe_order_lines_all oeol on oeoh.header_id = oeol.header_id
        where oeoh.cust_po_number = :trackingKey`,
@@ -136,14 +139,24 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
     );
 
     const computed = {
-      file_received: this.syntheticDone(),
-      soa_archived: this.syntheticDone(),
-      gvi_ssp: this.buildStep(sspRows),
-      gvi_non_ssp: this.buildStep(nonSspRows),
+      file_received: {
+        status: "Not Reached" as const,
+        eventTime: null,
+        lineCount: null,
+        errorCode: null,
+      },
+      soa_archived: {
+        status: "Not Reached" as const,
+        eventTime: null,
+        lineCount: null,
+        errorCode: null,
+      },
+      gvi_filewheel_ssp: this.buildStep(sspRows),
+      gvi_filewheel_normal: this.buildStep(nonSspRows),
       gvi_internal_inbound: this.buildStep(inboundRows),
       gvi_internal_outbound: this.buildStep(outboundRows),
-      gom_order_created: {
-        status: mapFlagsToStatus(gomRows.length ? ["P"] : []),
+      gom_order_statas: {
+        status: "Not Reached" as const,
         eventTime: latestTime(gomRows, ["LINE_CREATION_DATE", "CREATION_DATE"]),
         lineCount: gomRows.length,
         errorCode: null,
@@ -158,20 +171,30 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
       lineCount: computed[step.key as keyof typeof computed].lineCount,
       errorCode: computed[step.key as keyof typeof computed].errorCode,
       payload: { stepKey: step.key },
+      unimplemented: step.unimplemented,
     }));
   }
 
   async getOrderLines(trackingKey: string): Promise<OrderLine[]> {
-    const rows = await this.queryGvi(
-      `select program, line_number, process_flag, error_code, item_code, requested_quantity, last_update_date
-       from gvi_internal_order_interface
-       where customer_order_reference_nbr = :trackingKey
-       order by line_number`,
-      { trackingKey }
-    );
+    const [internalRows, filewheelRows] = await Promise.all([
+      this.queryGvi(
+        `select program, line_number, process_flag, error_code, item_code, requested_quantity, last_update_date
+         from gvi_internal_order_interface
+         where customer_order_reference_nbr = :trackingKey
+         order by line_number`,
+        { trackingKey }
+      ),
+      this.queryGvi(
+        `select program, line_number, process_flag, error_code, manufacturers_article_code, buyers_article_code, last_update_date
+         from gvi_filewheel_order_interface
+         where customer_order_reference_nbr = :trackingKey
+         order by line_number`,
+        { trackingKey }
+      ),
+    ]);
 
-    return rows.map((row) => ({
-      stage: "GVI_INTERNAL",
+    const internalLines = internalRows.map((row) => ({
+      stage: "GVI_INTERNAL" as const,
       program: toStr(row.PROGRAM),
       line_number: toStr(row.LINE_NUMBER),
       process_flag: toStr(row.PROCESS_FLAG),
@@ -180,6 +203,19 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
       requested_quantity: toNum(row.REQUESTED_QUANTITY),
       last_update_date: toIso(row.LAST_UPDATE_DATE),
     }));
+
+    const filewheelLines = filewheelRows.map((row) => ({
+      stage: "GVI_FILEWHEEL" as const,
+      program: toStr(row.PROGRAM),
+      line_number: toStr(row.LINE_NUMBER),
+      process_flag: toStr(row.PROCESS_FLAG),
+      error_code: toStr(row.ERROR_CODE),
+      item_code: toStr(row.MANUFACTURERS_ARTICLE_CODE) || toStr(row.BUYERS_ARTICLE_CODE) || null,
+      requested_quantity: null,
+      last_update_date: toIso(row.LAST_UPDATE_DATE),
+    }));
+
+    return [...internalLines, ...filewheelLines];
   }
 
   async searchOrders(query: string): Promise<SearchOrderResult[]> {

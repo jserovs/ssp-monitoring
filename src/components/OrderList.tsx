@@ -18,9 +18,9 @@ export function OrderList({ orders }: OrderListProps) {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl mb-2">SSP Order Tracking</h1>
+          <h1 className="text-3xl mb-2">SSP NA Order Tracking</h1>
           <p className="text-gray-600">
-            Monitor SSP transactions through the order flow interfaces
+            Monitor SSP NA transactions through the order flow interfaces
           </p>
         </div>
 

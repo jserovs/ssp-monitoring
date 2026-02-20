@@ -4,11 +4,13 @@ import { getGviPool, getGomPool } from "../../../server/order-flow/oracleConnect
 
 export async function GET(request: Request) {
   try {
+    //DEBUG
+    console.log("Request to get ALL:", request.url);
     const url = new URL(request.url);
     const limit = parsePositiveInt(url.searchParams.get("limit"), 50);
     const offset = parseNonNegativeInt(url.searchParams.get("offset"), 0);
     const query = (url.searchParams.get("query") || "").trim();
-
+    //DEBUG
     console.log("Fetching orders:", {
       limit,
       offset,

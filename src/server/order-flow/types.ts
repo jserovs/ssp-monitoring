@@ -7,9 +7,10 @@ export interface JourneyStep {
   status: JourneyStatus;
   eventTime: string | null;
   sourceDb: JourneySource;
-  lineCount: number;
+  lineCount: number | null;
   errorCode: string | null;
   payload: Record<string, unknown>;
+  unimplemented?: boolean;
 }
 
 export interface OrderLine {

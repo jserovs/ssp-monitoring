@@ -46,21 +46,14 @@ function mapOrderResponse(data: ApiOrderDetails): Order {
     orderNumber: data.trackingKey,
     fileName: null,
     customerName: "-",
-    customerEmail: "-",
     creationDate: orderDate,
     orderDate,
-    totalAmount: 0,
     currentStatus: mapStatus(
       data.journey.find((step) => step.status === "Error")?.status ||
         data.journey.find((step) => step.status === "In Progress")?.status ||
         data.journey.find((step) => step.status === "Completed")?.status ||
         "Not Reached"
     ),
-    priority: data.journey.some((step) => step.status === "Error")
-      ? "high"
-      : data.journey.some((step) => step.status === "In Progress")
-      ? "medium"
-      : "low",
     steps,
     processFlag: null,
     consigneeCode: null,
@@ -72,8 +65,21 @@ function mapOrderResponse(data: ApiOrderDetails): Order {
 }
 
 function mapJourneyStep(step: JourneyStep, allLines: FlowOrderLine[]): InterfaceStep {
-  const isInternalStep = step.payload?.stepKey === "gvi_internal_inbound" || step.payload?.stepKey === "gvi_internal_outbound";
-  const lines = isInternalStep ? allLines.map(mapOrderLine) : [];
+  const isInternalStep = 
+    step.payload?.stepKey === "gvi_internal_inbound" || 
+    step.payload?.stepKey === "gvi_internal_outbound";
+  const isFilewheelStep = 
+    step.payload?.stepKey === "gvi_filewheel_ssp" || 
+    step.payload?.stepKey === "gvi_filewheel_normal";
+
+  let stepLines: FlowOrderLine[] = [];
+  if (isInternalStep) {
+    stepLines = allLines.filter((line) => line.stage === "GVI_INTERNAL");
+  } else if (isFilewheelStep) {
+    stepLines = allLines.filter((line) => line.stage === "GVI_FILEWHEEL");
+  }
+  
+  const lines = stepLines.map(mapOrderLine);
 
   return {
     id: String(step.payload?.stepKey || step.step),
@@ -85,11 +91,12 @@ function mapJourneyStep(step: JourneyStep, allLines: FlowOrderLine[]): Interface
     duration: undefined,
     lines,
     metadata: {
-      processedLines: step.status === "Not Reached" ? 0 : step.lineCount,
-      totalLines: step.lineCount,
+      processedLines: step.status === "Not Reached" ? 0 : (step.lineCount ?? 0),
+      totalLines: step.lineCount ?? 0,
       errorCount: step.status === "Error" ? 1 : 0,
       warningCount: 0,
     },
+    unimplemented: step.unimplemented,
   };
 }
 

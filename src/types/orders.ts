@@ -23,6 +23,7 @@ export interface InterfaceStep {
     errorCount: number;
     warningCount: number;
   };
+  unimplemented?: boolean;
 }
 
 export interface Order {
@@ -30,12 +31,9 @@ export interface Order {
   orderNumber: string;
   fileName: string | null;
   customerName: string;
-  customerEmail: string;
   creationDate: string | null;
   orderDate: string;
-  totalAmount: number;
   currentStatus: string;
-  priority: "low" | "medium" | "high";
 
   steps: InterfaceStep[];
   // SSP Order fields from database
