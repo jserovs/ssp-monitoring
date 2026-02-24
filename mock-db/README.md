@@ -7,7 +7,7 @@ docker compose -f mock-db/docker-compose.yml up -d
 
 ### Podman (without compose provider)
 ```bash
-podman run -d \
+docker run -d \
   --name ssp-oracle-mock \
   -p 1521:1521 \
   -e ORACLE_PASSWORD=oracle \

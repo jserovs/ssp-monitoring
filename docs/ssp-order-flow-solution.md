@@ -92,11 +92,6 @@ Use Oracle Free container and initialize two schemas:
 - `GVI`
 - `GOM`
 
-Artifacts provided:
-- `mock-db/docker-compose.yml`
-- `mock-db/init/01-create-users.sql`
-- `mock-db/init/02-gvi-tables-and-data.sql`
-- `mock-db/init/03-gom-tables-and-data.sql`
 
 This gives reproducible Oracle-like validation before production cutover.
 
