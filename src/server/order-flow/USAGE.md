@@ -1,7 +1,7 @@
 # Order Flow Repository Usage
 
 ## Environment
-- Development: `DB_PROVIDER=sqlite`
+- Development: `DB_PROVIDER=oracle`
 - Integration/Production: `DB_PROVIDER=oracle`
 
 ## Example (Next.js route handler, TypeScript)
@@ -28,10 +28,9 @@ const orders = await repository.getAllOrders({ limit: 50, offset: 0, query: "" }
 ```
 
 ## Required packages (when wiring into app)
-- SQLite mode: `better-sqlite3`
 - Oracle mode: `oracledb`
 
 Install with pnpm:
 ```bash
-pnpm add better-sqlite3 oracledb
+pnpm add oracledb
 ```

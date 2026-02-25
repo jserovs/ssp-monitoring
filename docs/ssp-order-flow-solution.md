@@ -77,13 +77,13 @@ Use the exact checkpoints:
 - Cache hot queries for short TTL (30-60s)
 
 ## 4) Mock Database Strategy for Testing
-Primary recommendation for your requirement: use SQLite in-memory for development, and Oracle for integration/UAT.
+Primary recommendation for your requirement: use in-memory mock for development, and Oracle for integration/UAT.
 
-### 4.1 Development mode (in-memory SQLite)
+### 4.1 Development mode (in-memory mock)
 Use these files:
-- `mock-db/sqlite/schema.sql`
-- `mock-db/sqlite/seed.sql`
-- `mock-db/sqlite/README.md`
+- `mock-db/schema.sql`
+- `mock-db/seed.sql`
+- `mock-db/README.md`
 
 This allows fast local startup with deterministic data and no Oracle dependency.
 
