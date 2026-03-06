@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-03-06T12:00:00.000Z" agent="Codex GPT-5" version="24.7.17" type="device">
+  <diagram id="ssp-arch-001" name="SSP Monitoring Architecture">
+    <mxGraphModel dx="1800" dy="1100" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2200" pageHeight="1400" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="10" value="Next.js Application Container" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;fillColor=#f8f9fa;strokeColor=#666666;align=left;verticalAlign=top;spacing=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="220" y="40" width="1060" height="760" as="geometry"/>
+        </mxCell>
+        <mxCell id="11" value="Deployment Pipeline" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;fillColor=#f8f9fa;strokeColor=#666666;align=left;verticalAlign=top;spacing=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="220" y="840" width="1060" height="260" as="geometry"/>
+        </mxCell>
+        <mxCell id="12" value="Security Aspects" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;fillColor=#fffaf0;strokeColor=#666666;align=left;verticalAlign=top;spacing=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1320" y="40" width="820" height="1060" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="20" value="User Browser" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="230" width="150" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="21" value="Next.js App Server" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="280" y="120" width="180" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="22" value="Orders Page&#xa;src/app/orders/page.tsx" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="300" y="230" width="220" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="23" value="Order Details Page&#xa;src/app/orders/[id]/page.tsx" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="300" y="330" width="220" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="24" value="API Route&#xa;GET /api/orders" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="560" y="230" width="220" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="25" value="API Route&#xa;GET /api/orders/:trackingKey" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="560" y="330" width="220" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="26" value="API Route&#xa;GET /api/mock-files/:fileName" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="560" y="430" width="220" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="27" value="OracleOrderFlowRepository" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="840" y="300" width="220" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="28" value="GVI Oracle Pool&#xa;(singleton)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="840" y="430" width="220" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="29" value="GOM Oracle Pool&#xa;(singleton)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="840" y="530" width="220" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="30" value="mock-files/*.pdf" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="560" y="530" width="220" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="31" value="Oracle DB - GVI schema" style="shape=database;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="430" width="170" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="32" value="Oracle DB - GOM schema" style="shape=database;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="530" width="170" height="70" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="40" value="Source Code" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="280" y="930" width="180" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="41" value="Docker Multi-stage Build" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="510" y="930" width="190" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="42" value="Runtime Image&#xa;Next.js standalone" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="750" y="930" width="190" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="43" value="Container Runtime&#xa;PORT=3000, USER=node" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="990" y="930" width="230" height="70" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="50" value="Secrets loaded from env vars:&#xa;GVI_DB_USER / GVI_DB_PASSWORD / GVI_DB_CONNECT_STRING&#xa;GOM_DB_USER / GOM_DB_PASSWORD / GOM_DB_CONNECT_STRING" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="1360" y="120" width="740" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="51" value="Git hygiene: .env and .env.* ignored;&#xa;.env.example explicitly allowed for safe template sharing" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="1360" y="250" width="740" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="52" value="Least privilege runtime: container runs as non-root node user" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="1360" y="360" width="740" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="53" value="Input hardening: trackingKey validation + mock-file route restricts to PDF and uses path.basename" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="1360" y="455" width="740" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="54" value="DB protection: parameterized SQL via bind parameters (no string interpolation queries)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="1360" y="565" width="740" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="55" value="Operational risk: API currently returns raw error.message in 500 responses" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="1360" y="670" width="740" height="75" as="geometry"/>
+        </mxCell>
+        <mxCell id="56" value="Gap: no explicit auth/rate limiting on API routes (important for internet-facing deployment)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="1360" y="770" width="740" height="75" as="geometry"/>
+        </mxCell>
+        <mxCell id="57" value="Gap: enforce transport security/network controls between app runtime and Oracle endpoints" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="1360" y="870" width="740" height="75" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="100" value="HTTPS GET /orders, /orders/:id" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="20" target="21">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="101" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="21" target="22">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="102" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="21" target="23">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="103" value="server-side fetch" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="22" target="24">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="104" value="server-side fetch" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="23" target="25">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="105" value="proof-of-delivery PDF" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="23" target="26">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="106" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="24" target="27">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="107" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="25" target="27">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="108" value="GVI queries:&#xa;gvi_filewheel_order_interface&#xa;gvi_internal_order_interface" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="27" target="28">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="109" value="GOM queries:&#xa;oe_order_headers_all + oe_order_lines_all" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="27" target="29">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="110" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="26" target="30">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="111" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="28" target="31">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="112" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="29" target="32">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="120" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="40" target="41">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="121" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="41" target="42">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="122" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="42" target="43">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="123" value="hosts app" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.5;dashed=1;strokeColor=#666666;" edge="1" parent="1" source="43" target="21">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="130" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;strokeWidth=1.2;dashed=1;strokeColor=#82b366;" edge="1" parent="1" source="50" target="28">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="131" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;strokeWidth=1.2;dashed=1;strokeColor=#82b366;" edge="1" parent="1" source="50" target="29">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="132" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;strokeWidth=1.2;dashed=1;strokeColor=#82b366;" edge="1" parent="1" source="51" target="40">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="133" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;strokeWidth=1.2;dashed=1;strokeColor=#82b366;" edge="1" parent="1" source="52" target="43">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="134" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;strokeWidth=1.2;dashed=1;strokeColor=#82b366;" edge="1" parent="1" source="53" target="25">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="135" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;strokeWidth=1.2;dashed=1;strokeColor=#82b366;" edge="1" parent="1" source="53" target="26">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="136" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;strokeWidth=1.2;dashed=1;strokeColor=#82b366;" edge="1" parent="1" source="54" target="27">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="137" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;strokeWidth=1.2;dashed=1;strokeColor=#b85450;" edge="1" parent="1" source="55" target="24">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="138" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;strokeWidth=1.2;dashed=1;strokeColor=#b85450;" edge="1" parent="1" source="55" target="25">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="139" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;strokeWidth=1.2;dashed=1;strokeColor=#b85450;" edge="1" parent="1" source="56" target="24">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="140" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;strokeWidth=1.2;dashed=1;strokeColor=#b85450;" edge="1" parent="1" source="56" target="25">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="141" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;strokeWidth=1.2;dashed=1;strokeColor=#b85450;" edge="1" parent="1" source="57" target="31">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="142" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;strokeWidth=1.2;dashed=1;strokeColor=#b85450;" edge="1" parent="1" source="57" target="32">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
