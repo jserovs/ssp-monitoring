@@ -61,16 +61,16 @@ Status mapping from `PROCESS_FLAG`:
 
 ### 3.3 Query strategy (aligned with AGENT.md)
 Use the exact checkpoints:
-- `gvi_filewheel_order_interface` with `program = 'SSP'`
-- `gvi_filewheel_order_interface` with `program <> 'SSP'`
-- `gvi_internal_order_interface` with `direction is null`
-- `gvi_internal_order_interface` with `direction = 'OUTBOUND'`
+- `gvi_filewheel_order_int_ssp_v` with `program = 'SSP'`
+- `gvi_filewheel_order_int_ssp_v` with `program <> 'SSP'`
+- `gvi_internal_order_int_ssp_v` with `direction is null`
+- `gvi_internal_order_int_ssp_v` with `direction = 'OUTBOUND'`
 - `oe_order_headers_all` + `oe_order_lines_all` in GOM
 
 ### 3.4 Performance and reliability
 - Add indexes for test/prod parity:
-  - `gvi_filewheel_order_interface(customer_order_reference_nbr, file_name, program, process_flag)`
-  - `gvi_internal_order_interface(customer_order_reference_nbr, direction, process_flag)`
+  - `gvi_filewheel_order_int_ssp_v(customer_order_reference_nbr, file_name, program, process_flag)`
+  - `gvi_internal_order_int_ssp_v(customer_order_reference_nbr, direction, process_flag)`
   - `oe_order_headers_all(cust_po_number)`
   - `oe_order_lines_all(header_id)`
 - API timeout + graceful partial response if one DB is down
@@ -108,3 +108,9 @@ This gives reproducible Oracle-like validation before production cutover.
 3. Build timeline UI + line details grid.
 4. Add error highlighting and filters.
 5. Add synthetic monitoring + dashboards.
+
+
+
+<!-- select * from gvi_filewheel_order_interface fw, gvi_internal_order_interface it
+where fw.GVI_INTERFACE_LINE_ID = it.GVI_FW_INTERFACE_LINE_ID
+gvi_filewheel_order_interface.GVI_INTERFACE_LINE_ID -> GVI_FW_INTERFACE_LINE_ID.GVI_FW_INTERFACE_LINE_ID -->

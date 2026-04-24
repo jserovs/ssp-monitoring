@@ -31,7 +31,7 @@ flowchart TB
   A2 --> O2
   A1 --> R
   A2 --> R
-  R -->|gvi_filewheel_order_interface,\ngvi_internal_order_interface| O1
+  R -->|gvi_filewheel_order_int_ssp_v,\ngvi_internal_order_int_ssp_v| O1
   R -->|oe_order_headers_all,\noe_order_lines_all| O2
   A3 --> F
   P2 -->|Proof of Delivery URL| A3
@@ -77,7 +77,7 @@ flowchart TB
 2. Server-rendered pages call internal API routes (`/api/orders`, `/api/orders/:trackingKey`).
 3. API routes initialize/reuse singleton Oracle pools for GVI and GOM.
 4. Repository executes read queries:
-   - GVI: `gvi_filewheel_order_interface`, `gvi_internal_order_interface`
+   - GVI: `gvi_filewheel_order_int_ssp_v`, `gvi_internal_order_int_ssp_v`
    - GOM: `oe_order_headers_all`, `oe_order_lines_all`
 5. API aggregates response into order list/details/journey/lines JSON.
 6. UI renders timeline and line diagnostics.

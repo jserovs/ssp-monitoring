@@ -38,6 +38,11 @@ export interface GetAllOrdersOptions {
   query?: string;
 }
 
+export interface OrderTrackingKey {
+  customer_order_reference_nbr: string;
+  file_name: string;
+}
+
 export interface OrderListItem {
   customer_order_reference_nbr: string;
   file_name: string | null;
@@ -70,8 +75,8 @@ export interface OrderDetails {
 
 export interface OrderFlowRepository {
   getAllOrders(options?: GetAllOrdersOptions): Promise<OrderListItem[]>;
-  getOrderDetails(trackingKey: string): Promise<OrderDetails | null>;
-  getJourney(trackingKey: string): Promise<JourneyStep[]>;
-  getOrderLines(trackingKey: string): Promise<OrderLine[]>;
+  getOrderDetails(trackingKey: OrderTrackingKey): Promise<OrderDetails | null>;
+  getJourney(trackingKey: OrderTrackingKey): Promise<JourneyStep[]>;
+  getOrderLines(trackingKey: OrderTrackingKey): Promise<OrderLine[]>;
   searchOrders(query: string): Promise<SearchOrderResult[]>;
 }

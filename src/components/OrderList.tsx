@@ -125,7 +125,7 @@ export function OrderList({ orders }: OrderListProps) {
                   >
                     <td className="px-4 py-4">
                       <Link 
-                        href={`/orders/${order.orderNumber}`} 
+                        href={`/orders/details?customerOrderReference=${encodeURIComponent(order.orderNumber)}&fileName=${encodeURIComponent(order.fileName || "")}`} 
                         className="flex items-center gap-2 text-indigo-700 hover:text-indigo-900 font-medium"
                       >
                         <FileText className="w-4 h-4" />

@@ -5,15 +5,20 @@ import { type JourneyStatus, type JourneyStep, type OrderLine as FlowOrderLine, 
 
 interface ApiOrderDetails {
   trackingKey: string;
+  fileName: string;
   orderDetails: OrderDetails | null;
   journey: JourneyStep[];
   lines: FlowOrderLine[];
 }
 
-async function getOrder(trackingKey: string): Promise<Order | null> {
+async function getOrder(trackingKey: string, fileName: string): Promise<Order | null> {
   try {
+    const searchParams = new URLSearchParams({
+      customerOrderReference: trackingKey,
+      fileName,
+    });
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/orders/${trackingKey}`,
+      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/orders?${searchParams.toString()}`,
       {
         cache: "no-store",
       }
@@ -74,7 +79,6 @@ function mapJourneyStep(step: JourneyStep, allLines: FlowOrderLine[]): Interface
   let stepLines: FlowOrderLine[] = [];
   if (isInternalStep && program) {
     const directionFilter = stepKey === "gvi_internal_outbound" ? "OUTBOUND" : null;
-    // Program-specific internal step (after split): filter by program + direction
     stepLines = allLines.filter(
       (line) =>
         line.stage === "GVI_INTERNAL" &&
@@ -83,7 +87,6 @@ function mapJourneyStep(step: JourneyStep, allLines: FlowOrderLine[]): Interface
     );
   } else if (isInternalStep) {
     const directionFilter = stepKey === "gvi_internal_outbound" ? "OUTBOUND" : null;
-    // Regular internal step (before split or no split): filter by direction
     stepLines = allLines.filter(
       (line) =>
         line.stage === "GVI_INTERNAL" &&
@@ -92,18 +95,16 @@ function mapJourneyStep(step: JourneyStep, allLines: FlowOrderLine[]): Interface
   } else if (stepKey === "gvi_filewheel_ssp") {
     stepLines = allLines.filter((line) => line.stage === "GVI_FILEWHEEL" && line.program === "SSP");
   } else if (stepKey === "gvi_filewheel_normal" && program) {
-    // Program-specific filewheel step (after split)
     stepLines = allLines.filter((line) => line.stage === "GVI_FILEWHEEL" && line.program === program);
   } else if (stepKey === "gvi_filewheel_normal") {
-    // Regular filewheel step (before split or no split)
     stepLines = allLines.filter((line) => line.stage === "GVI_FILEWHEEL" && line.program !== "SSP");
   }
-  
+
   const lines = stepLines.map((line, index) => mapOrderLine(line, index));
 
   return {
-    id: step.payload?.program 
-      ? `${step.payload?.stepKey}-${step.payload.program}` 
+    id: step.payload?.program
+      ? `${step.payload?.stepKey}-${step.payload.program}`
       : String(step.payload?.stepKey || step.step),
     name: step.step,
     description: `${step.sourceDb} processing step`,
@@ -170,14 +171,20 @@ function mapLineStatus(processFlag: string | null): OrderLine["status"] {
 }
 
 interface OrderPageProps {
-  params: Promise<{
-    id: string;
+  searchParams: Promise<{
+    customerOrderReference?: string;
+    fileName?: string;
   }>;
 }
 
-export default async function OrderPage({ params }: OrderPageProps) {
-  const { id } = await params;
-  const order = await getOrder(id);
+export default async function OrderPage({ searchParams }: OrderPageProps) {
+  const { customerOrderReference, fileName } = await searchParams;
+
+  if (!customerOrderReference || !fileName) {
+    notFound();
+  }
+
+  const order = await getOrder(customerOrderReference, fileName);
 
   if (!order) {
     notFound();

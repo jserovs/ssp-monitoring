@@ -6,6 +6,7 @@ import type {
   OrderLine,
   SearchOrderResult,
   GetAllOrdersOptions,
+  OrderTrackingKey,
   OrderListItem,
   OrderDetails,
 } from "../types";
@@ -42,8 +43,8 @@ const JOURNEY_STEPS: JourneyStepDef[] = [
   { key: "file_received", name: "File Received (ACCESS NEEDED)", sourceDb: "FILE", unimplemented: true },
   { key: "soa_processed", name: "SOA Processed (ACCESS NEEDED)", sourceDb: "FILE", unimplemented: true },
   { key: "proof_of_delivery", name: "Proof Of Delivery (ACCESS NEEDED)", sourceDb: "FILE" },
-  { key: "gvi_filewheel_ssp", name: "GVI Filewheel (SSP)", sourceDb: "GVI" },
-  { key: "gvi_filewheel_normal", name: "GVI Filewheel (non-SSP)", sourceDb: "GVI" },
+  { key: "gvi_filewheel_ssp", name: "GVI Filewheel (Before Split)", sourceDb: "GVI" },
+  { key: "gvi_filewheel_normal", name: "GVI Filewheel (After Split)", sourceDb: "GVI" },
   { key: "gvi_internal_inbound", name: "GVI Internal (GVI Validation)", sourceDb: "GVI" },
   { key: "gvi_internal_outbound", name: "GVI Internal (GVI Outbound)", sourceDb: "GVI" },
   { key: "gom_order_statas", name: "GOM Order Status", sourceDb: "GOM" },
@@ -79,7 +80,7 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
             max(mark) as mark,
             max(ssp_invoice_type) as ssp_invoice_type,
             max(interchange_sender) as interchange_sender
-          from gvi_filewheel_order_interface
+          from gvimgr.gvi_filewheel_order_int_ssp_v
           where customer_order_reference_nbr like :likeValue or file_name like :likeValue
           group by customer_order_reference_nbr, file_name
          order by max(last_update_date) desc
@@ -102,7 +103,7 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
            max(mark) as mark,
            max(ssp_invoice_type) as ssp_invoice_type,
            max(interchange_sender) as interchange_sender
-         from gvi_filewheel_order_interface
+         from gvimgr.gvi_filewheel_order_int_ssp_v
          group by customer_order_reference_nbr, file_name
         order by 4 desc
          offset :offsetRows rows fetch next :limitRows rows only`,
@@ -112,7 +113,8 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
     return rows.map((row) => mapOrderListRow(row));
   }
 
-  async getOrderDetails(trackingKey: string): Promise<OrderDetails | null> {
+  async getOrderDetails(trackingKey: OrderTrackingKey): Promise<OrderDetails | null> {
+    const bindParams = toBindParams(trackingKey);
     const rows = await this.queryGvi(
       `select
          customer_order_reference_nbr,
@@ -125,10 +127,11 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
          max(mark) as mark,
          max(ssp_invoice_type) as ssp_invoice_type,
          max(interchange_sender) as interchange_sender
-       from gvi_filewheel_order_interface
-       where customer_order_reference_nbr = :trackingKey
+       from gvimgr.gvi_filewheel_order_int_ssp_v
+       where customer_order_reference_nbr = :customer_order_reference_nbr
+         and file_name = :file_name
        group by customer_order_reference_nbr, file_name`,
-      { trackingKey }
+      bindParams
     );
 
     if (rows.length === 0) {
@@ -150,51 +153,64 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
     };
   }
 
-  async getJourney(trackingKey: string): Promise<JourneyStep[]> {
+  async getJourney(trackingKey: OrderTrackingKey): Promise<JourneyStep[]> {
+    const bindParams = toBindParams(trackingKey);
+    const internalCorrelationClause = buildInternalFilewheelCorrelationClause("internal_rows");
 
-    console.log("getJourney trackingKey:" + trackingKey);
+    console.log("getJourney trackingKey:", trackingKey);
 
     const sspRows = await this.queryGvi(
       `select process_flag, error_code, creation_date, last_update_date
-       from gvi_filewheel_order_interface
-       where customer_order_reference_nbr = :trackingKey and program = 'SSP'`,
-      { trackingKey }
+       from gvimgr.gvi_filewheel_order_int_ssp_v
+       where customer_order_reference_nbr = :customer_order_reference_nbr
+         and file_name = :file_name
+         and program = 'SSP'`,
+      bindParams
     );
 
     const nonSspRows = await this.queryGvi(
       `select process_flag, error_code, creation_date, last_update_date, program
-       from gvi_filewheel_order_interface
-       where customer_order_reference_nbr = :trackingKey and program <> 'SSP'`,
-      { trackingKey }
+       from gvimgr.gvi_filewheel_order_int_ssp_v
+       where customer_order_reference_nbr = :customer_order_reference_nbr
+         and file_name = :file_name
+         and program <> 'SSP'`,
+      bindParams
     );
 
     const inboundRows = await this.queryGvi(
-      `select process_flag, error_code, creation_date, last_update_date, program
-       from gvi_internal_order_interface
-       where customer_order_reference_nbr = :trackingKey and direction is null`,
-      { trackingKey }
+      `select internal_rows.process_flag, internal_rows.error_code, internal_rows.creation_date, internal_rows.last_update_date, internal_rows.program
+       from gvimgr.gvi_internal_order_int_ssp_v internal_rows
+       where internal_rows.customer_order_reference_nbr = :customer_order_reference_nbr
+         and internal_rows.direction is null
+         and ${internalCorrelationClause}`,
+      bindParams
     );
 
     const outboundRows = await this.queryGvi(
-      `select process_flag, error_code, creation_date, last_update_date, program
-       from gvi_internal_order_interface
-       where customer_order_reference_nbr = :trackingKey and direction = 'OUTBOUND'`,
-      { trackingKey }
+      `select internal_rows.process_flag, internal_rows.error_code, internal_rows.creation_date, internal_rows.last_update_date, internal_rows.program, internal_rows.subs_order_number_from
+       from gvimgr.gvi_internal_order_int_ssp_v internal_rows
+       where internal_rows.customer_order_reference_nbr = :customer_order_reference_nbr
+         and internal_rows.direction = 'OUTBOUND'
+         and ${internalCorrelationClause}`,
+      bindParams
     );
 
     // Query for distinct programs from both filewheel and internal to show order split
     const [filewheelProgramRows, internalProgramRows] = await Promise.all([
       this.queryGvi(
         `select distinct program 
-         from gvi_filewheel_order_interface 
-         where customer_order_reference_nbr = :trackingKey and program <> 'SSP'`,
-        { trackingKey }
+         from gvimgr.gvi_filewheel_order_int_ssp_v 
+         where customer_order_reference_nbr = :customer_order_reference_nbr
+           and file_name = :file_name
+           and program <> 'SSP'`,
+        bindParams
       ),
       this.queryGvi(
-        `select distinct program 
-         from gvi_internal_order_interface 
-         where customer_order_reference_nbr = :trackingKey`,
-        { trackingKey }
+        `select distinct internal_rows.program 
+         from gvimgr.gvi_internal_order_int_ssp_v internal_rows
+         where internal_rows.customer_order_reference_nbr = :customer_order_reference_nbr
+           and ${internalCorrelationClause}`,
+        bindParams
       ),
     ]);
     
@@ -205,13 +221,17 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
     // If no programs found, use default steps
     const hasSplit = programs.length > 0;
 
-    const gomRows = await this.queryGom(
-      `select oeoh.creation_date as creation_date, oeol.creation_date as line_creation_date, oeoh.flow_status_code as flow_status_code, oeoh.attribute13 as attribute13
-       from oe_order_headers_all oeoh
-       join oe_order_lines_all oeol on oeoh.header_id = oeol.header_id
-       where oeoh.cust_po_number = :trackingKey`,
-      { trackingKey }
-    );
+    const gomLookup = buildGomLookup(bindParams, outboundRows);
+    const gomRows = gomLookup
+      ? await this.queryGom(
+          `select distinct oeoh.creation_date as creation_date, oeol.creation_date as line_creation_date, oeoh.flow_status_code as flow_status_code, oeoh.attribute13 as attribute13
+           from oe_order_headers_all oeoh
+           join oe_order_lines_all oeol on oeoh.header_id = oeol.header_id
+           where oeoh.cust_po_number = :customer_order_reference_nbr
+             and oeoh.orig_sys_document_ref in (${gomLookup.origSysDocumentRefPlaceholders.join(", ")})`,
+          gomLookup.bindParams
+        )
+      : [];
 
     const proofOfDeliveryUrl = "/api/mock-files/order1.pdf";
 
@@ -422,21 +442,25 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
     return journeySteps;
   }
 
-  async getOrderLines(trackingKey: string): Promise<OrderLine[]> {
+  async getOrderLines(trackingKey: OrderTrackingKey): Promise<OrderLine[]> {
+    const bindParams = toBindParams(trackingKey);
+    const internalCorrelationClause = buildInternalFilewheelCorrelationClause("internal_rows");
     const [internalRows, filewheelRows] = await Promise.all([
       this.queryGvi(
-        `select program, direction, line_number, process_flag, error_code, item_code, requested_quantity, last_update_date
-         from gvi_internal_order_interface
-         where customer_order_reference_nbr = :trackingKey
-         order by line_number`,
-        { trackingKey }
+        `select internal_rows.program, internal_rows.direction, internal_rows.line_number, internal_rows.process_flag, internal_rows.error_code, internal_rows.item_code, internal_rows.requested_quantity, internal_rows.last_update_date
+         from gvimgr.gvi_internal_order_int_ssp_v internal_rows
+         where internal_rows.customer_order_reference_nbr = :customer_order_reference_nbr
+           and ${internalCorrelationClause}
+         order by internal_rows.line_number`,
+        bindParams
       ),
       this.queryGvi(
         `select program, line_number, process_flag, error_code, manufacturers_article_code, buyers_article_code, requested_quantity, last_update_date
-         from gvi_filewheel_order_interface
-         where customer_order_reference_nbr = :trackingKey
+         from gvimgr.gvi_filewheel_order_int_ssp_v
+         where customer_order_reference_nbr = :customer_order_reference_nbr
+           and file_name = :file_name
          order by line_number`,
-        { trackingKey }
+        bindParams
       ),
     ]);
 
@@ -472,7 +496,7 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
 
     const rows = await this.queryGvi(
       `select customer_order_reference_nbr, file_name, max(last_update_date) as last_update_date
-       from gvi_filewheel_order_interface
+       from gvimgr.gvi_filewheel_order_int_ssp_v
        where customer_order_reference_nbr like :likeValue or file_name like :likeValue
        group by customer_order_reference_nbr, file_name
        order by max(last_update_date) desc`,
@@ -598,6 +622,53 @@ function toNum(value: unknown): number | null {
   return Number.isNaN(n) ? null : n;
 }
 
+function toBindParams(trackingKey: OrderTrackingKey): Record<string, unknown> {
+  return {
+    customer_order_reference_nbr: trackingKey.customer_order_reference_nbr,
+    file_name: trackingKey.file_name,
+  };
+}
+
+function buildGomLookup(
+  baseBindParams: Record<string, unknown>,
+  outboundRows: Array<Record<string, unknown>>
+): { bindParams: Record<string, unknown>; origSysDocumentRefPlaceholders: string[] } | null {
+  const origSysDocumentRefs = [...new Set(
+    outboundRows
+      .map((row) => toStr(row.SUBS_ORDER_NUMBER_FROM))
+      .filter((value): value is string => Boolean(value))
+  )];
+
+  if (origSysDocumentRefs.length === 0) {
+    return null;
+  }
+
+  const bindParams: Record<string, unknown> = {
+    customer_order_reference_nbr: baseBindParams.customer_order_reference_nbr,
+  };
+  const origSysDocumentRefPlaceholders = origSysDocumentRefs.map((value, index) => {
+    const bindName = `orig_sys_document_ref_${index}`;
+    bindParams[bindName] = value;
+    return `:${bindName}`;
+  });
+
+  return {
+    bindParams,
+    origSysDocumentRefPlaceholders,
+  };
+}
+
+function buildInternalFilewheelCorrelationClause(internalAlias: string): string {
+  return `exists (
+    select 1
+    from gvimgr.gvi_filewheel_order_int_ssp_v filewheel_rows
+    where filewheel_rows.gvi_interface_line_id = ${internalAlias}.gvi_fw_interface_line_id
+      and filewheel_rows.customer_order_reference_nbr = :customer_order_reference_nbr
+      and filewheel_rows.file_name = :file_name
+      and filewheel_rows.program <> 'SSP'
+  )`;
+}
+
 function extractProgramFromAttribute13(value: unknown): string | null {
   const text = toStr(value);
   if (!text) {
@@ -618,6 +689,8 @@ function getCustomerName(interchangeSender: string | null): string | null {
   const mapping: Record<string, string> = {
     "7047353003": "ATD",
     "8004904929": "USAF",
+    "7047353003T": "ATD",
+    "8004904929T": "USAF",
   };
   return mapping[interchangeSender] ?? null;
 }

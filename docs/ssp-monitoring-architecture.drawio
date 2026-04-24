@@ -118,7 +118,7 @@
         <mxCell id="107" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="25" target="27">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
-        <mxCell id="108" value="GVI queries:&#xa;gvi_filewheel_order_interface&#xa;gvi_internal_order_interface" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="27" target="28">
+        <mxCell id="108" value="GVI queries:&#xa;gvi_filewheel_order_int_ssp_v&#xa;gvi_internal_order_int_ssp_v" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="27" target="28">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
         <mxCell id="109" value="GOM queries:&#xa;oe_order_headers_all + oe_order_lines_all" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="27" target="29">

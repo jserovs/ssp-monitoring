@@ -4,6 +4,7 @@ import type {
   OrderLine,
   SearchOrderResult,
   GetAllOrdersOptions,
+  OrderTrackingKey,
   OrderListItem,
   OrderDetails,
 } from "../types";
@@ -11,11 +12,11 @@ import type {
 export abstract class BaseOrderFlowRepository implements OrderFlowRepository {
   abstract getAllOrders(options?: GetAllOrdersOptions): Promise<OrderListItem[]>;
 
-  abstract getOrderDetails(trackingKey: string): Promise<OrderDetails | null>;
+  abstract getOrderDetails(trackingKey: OrderTrackingKey): Promise<OrderDetails | null>;
 
-  abstract getJourney(trackingKey: string): Promise<JourneyStep[]>;
+  abstract getJourney(trackingKey: OrderTrackingKey): Promise<JourneyStep[]>;
 
-  abstract getOrderLines(trackingKey: string): Promise<OrderLine[]>;
+  abstract getOrderLines(trackingKey: OrderTrackingKey): Promise<OrderLine[]>;
 
   abstract searchOrders(query: string): Promise<SearchOrderResult[]>;
 }
