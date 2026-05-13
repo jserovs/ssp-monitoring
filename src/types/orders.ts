@@ -1,5 +1,6 @@
 export interface OrderLine {
   id: string;
+  lineNumber: string | null;
   itemName: string;
   itemCode: string;
   quantity: number;

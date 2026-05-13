@@ -2,21 +2,46 @@ import { OrderList } from "@/components/OrderList";
 import { Order } from "@/types/orders";
 import { OrderListItem, JourneyStatus } from "@/server/order-flow";
 
-async function getOrders(): Promise<Order[]> {
+interface OrdersApiResponse {
+  data?: OrderListItem[];
+  paging?: {
+    limit: number;
+    offset: number;
+    returned: number;
+  };
+}
+
+interface GetOrdersResult {
+  orders: Order[];
+  returned: number;
+}
+
+async function getOrders(options: { query?: string; limit: number; offset: number }): Promise<GetOrdersResult> {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/orders`, {
-      cache: 'no-store',
+    const params = new URLSearchParams({
+      limit: String(options.limit),
+      offset: String(options.offset),
     });
+    if (options.query) {
+      params.set("query", options.query);
+    }
+
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/orders?${params.toString()}`,
+      {
+        cache: "no-store",
+      }
+    );
     
     if (!response.ok) {
-      throw new Error('Failed to fetch orders');
+      throw new Error("Failed to fetch orders");
     }
     
-    const data = await response.json();
+    const data = (await response.json()) as OrdersApiResponse;
     const items: OrderListItem[] = data.data || [];
     
     // Transform API data to match Order type
-    return items.map((item): Order => ({
+    const orders = items.map((item): Order => ({
       id: `${item.customer_order_reference_nbr}-${item.file_name}`,
       orderNumber: item.customer_order_reference_nbr,
       fileName: item.file_name,
@@ -32,9 +57,17 @@ async function getOrders(): Promise<Order[]> {
       sspInvoiceType: item.ssp_invoice_type,
       lineCount: item.line_count,
     }));
+
+    return {
+      orders,
+      returned: data.paging?.returned ?? orders.length,
+    };
   } catch (error) {
-    console.error('Error fetching orders:', error);
-    return [];
+    console.error("Error fetching orders:", error);
+    return {
+      orders: [],
+      returned: 0,
+    };
   }
 }
 
@@ -53,8 +86,49 @@ function getStatusText(status: JourneyStatus): string {
   }
 }
 
-export default async function OrdersPage() {
-  const orders = await getOrders();
+function parsePositiveInt(value: string | undefined, fallback: number): number {
+  if (!value) {
+    return fallback;
+  }
 
-  return <OrderList orders={orders} />;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+
+  return parsed;
+}
+
+interface OrdersPageProps {
+  searchParams: Promise<{
+    page?: string;
+    query?: string;
+    pageSize?: string;
+  }>;
+}
+
+export default async function OrdersPage({ searchParams }: OrdersPageProps) {
+  const resolvedSearchParams = await searchParams;
+  const page = parsePositiveInt(resolvedSearchParams.page, 1);
+  const pageSize = parsePositiveInt(resolvedSearchParams.pageSize, 50);
+  const query = resolvedSearchParams.query?.trim() || undefined;
+  const offset = (page - 1) * pageSize;
+
+  const { orders, returned } = await getOrders({
+    query,
+    limit: pageSize,
+    offset,
+  });
+
+  const hasMore = returned === pageSize;
+
+  return (
+    <OrderList
+      orders={orders}
+      initialQuery={query || ""}
+      page={page}
+      pageSize={pageSize}
+      hasMore={hasMore}
+    />
+  );
 }

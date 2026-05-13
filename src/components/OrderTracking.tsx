@@ -281,7 +281,8 @@ export function OrderTracking({ order }: OrderTrackingProps) {
                                       <h5 className="text-gray-900">{line.itemName}</h5>
                                       <Badge variant="outline" className={getLineStatusColor(line.status)}>{line.status}</Badge>
                                     </div>
-                                    <div className="grid grid-cols-3 gap-4 text-sm">
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                      <div><span className="text-gray-500">Line:</span><span className="ml-2 text-gray-900">{line.lineNumber || "-"}</span></div>
                                       <div><span className="text-gray-500">Item:</span><span className="ml-2 text-gray-900">{line.itemCode}</span></div>
                                       <div><span className="text-gray-500">Qty:</span><span className="ml-2 text-gray-900">{line.quantity}</span></div>
                                       <div><span className="text-gray-500">Updated:</span><span className="ml-2 text-gray-900">{line.lastUpdated}</span></div>

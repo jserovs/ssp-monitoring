@@ -4,6 +4,7 @@ export type JourneySource = "GVI" | "GOM" | "FILE" | "SOA";
 
 export interface JourneyStep {
   step: string;
+  description: string;
   status: JourneyStatus;
   eventTime: string | null;
   sourceDb: JourneySource;

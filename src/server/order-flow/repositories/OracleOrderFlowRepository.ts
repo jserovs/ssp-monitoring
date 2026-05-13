@@ -64,7 +64,7 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
     const query = options.query?.trim();
 
     if (query) {
-      const likeValue = `%${query}%`;
+      const likeValue = `%${query.toUpperCase()}%`;
       //DEBUG
       console.log("query:", likeValue);
       const rows = await this.queryGvi(
@@ -81,9 +81,10 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
             max(ssp_invoice_type) as ssp_invoice_type,
             max(interchange_sender) as interchange_sender
           from gvimgr.gvi_filewheel_order_int_ssp_v
-          where customer_order_reference_nbr like :likeValue or file_name like :likeValue
-          group by customer_order_reference_nbr, file_name
-         order by max(last_update_date) desc
+           where upper(customer_order_reference_nbr) like :likeValue
+             or upper(file_name) like :likeValue
+            group by customer_order_reference_nbr, file_name
+           order by last_update_date desc
           offset :offsetRows rows fetch next :limitRows rows only`,       { likeValue, offsetRows: offset, limitRows: limit }
       );
 
@@ -286,42 +287,43 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
     const journeySteps: JourneyStep[] = [];
 
     // Add pre-split steps
-    journeySteps.push({
-      step: "File Received (ACCESS NEEDED)",
-      sourceDb: "FILE",
-      status: computed.file_received.status,
-      eventTime: toIso(computed.file_received.eventTime),
-      lineCount: computed.file_received.lineCount,
-      errorCode: computed.file_received.errorCode,
-      payload: { stepKey: "file_received" },
-      unimplemented: true,
-    });
+    // journeySteps.push({
+    //   step: "File Received (ACCESS NEEDED)",
+    //   sourceDb: "FILE",
+    //   status: computed.file_received.status,
+    //   eventTime: toIso(computed.file_received.eventTime),
+    //   lineCount: computed.file_received.lineCount,
+    //   errorCode: computed.file_received.errorCode,
+    //   payload: { stepKey: "file_received" },
+    //   unimplemented: true,
+    // });
 
-    journeySteps.push({
-      step: "SOA Processed (ACCESS NEEDED)",
-      sourceDb: "FILE",
-      status: computed.soa_processed.status,
-      eventTime: toIso(computed.soa_processed.eventTime),
-      lineCount: computed.soa_processed.lineCount,
-      errorCode: computed.soa_processed.errorCode,
-      payload: { stepKey: "soa_processed" },
-      unimplemented: true,
-    });
+    // journeySteps.push({
+    //   step: "SOA Processed (ACCESS NEEDED)",
+    //   sourceDb: "FILE",
+    //   status: computed.soa_processed.status,
+    //   eventTime: toIso(computed.soa_processed.eventTime),
+    //   lineCount: computed.soa_processed.lineCount,
+    //   errorCode: computed.soa_processed.errorCode,
+    //   payload: { stepKey: "soa_processed" },
+    //   unimplemented: true,
+    // });
 
-    journeySteps.push({
-      step: "Proof Of Delivery (ACCESS NEEDED)",
-      sourceDb: "FILE",
-      status: computed.proof_of_delivery.status,
-      eventTime: toIso(computed.proof_of_delivery.eventTime),
-      lineCount: computed.proof_of_delivery.lineCount,
-      errorCode: computed.proof_of_delivery.errorCode,
-      payload: computed.proof_of_delivery.payload ?? { stepKey: "proof_of_delivery" },
-      hideLines: true,
-    });
+    // journeySteps.push({
+    //   step: "Proof Of Delivery (ACCESS NEEDED)",
+    //   sourceDb: "FILE",
+    //   status: computed.proof_of_delivery.status,
+    //   eventTime: toIso(computed.proof_of_delivery.eventTime),
+    //   lineCount: computed.proof_of_delivery.lineCount,
+    //   errorCode: computed.proof_of_delivery.errorCode,
+    //   payload: computed.proof_of_delivery.payload ?? { stepKey: "proof_of_delivery" },
+    //   hideLines: true,
+    // });
 
     // Filewheel steps
     journeySteps.push({
       step: "GVI Filewheel (SSP)",
+      description: "gvi_filewheel_order_interface where program = 'SSP'",
       sourceDb: "GVI",
       status: computed.gvi_filewheel_ssp.status,
       eventTime: toIso(computed.gvi_filewheel_ssp.eventTime),
@@ -334,6 +336,7 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
     if (hasSplit && programs.length > 1) {
       journeySteps.push({
         step: `Order Split (${programs.length} branches)`,
+        description: `Order split detected into ${programs.length} branches`,
         sourceDb: "GVI",
         status: "Completed",
         eventTime: null,
@@ -349,6 +352,7 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
         
         journeySteps.push({
           step: `GVI Filewheel (${program})`,
+          description:`gvi_filewheel_order_interface where program = ${program}`,
           sourceDb: "GVI",
           status: this.buildStep(programFilewheelRows).status,
           eventTime: toIso(latestTime(programFilewheelRows, ["CREATION_DATE", "LAST_UPDATE_DATE"])),
@@ -366,6 +370,7 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
 
         journeySteps.push({
           step: `GVI Validation (${program})`,
+          description: `gvi_internal_order_interface where program = ${program}`,
           sourceDb: "GVI",
           status: this.buildStep(programInboundRows).status,
           eventTime: toIso(latestTime(programInboundRows, ["CREATION_DATE", "LAST_UPDATE_DATE"])),
@@ -376,6 +381,7 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
 
         journeySteps.push({
           step: `GVI Outbound (${program})`,
+          description: `gvi_internal_order_interface where program = ${program} and OUTBOUND`,
           sourceDb: "GVI",
           status: this.buildStep(programOutboundRows).status,
           eventTime: toIso(latestTime(programOutboundRows, ["CREATION_DATE", "LAST_UPDATE_DATE"])),
@@ -386,6 +392,7 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
 
         journeySteps.push({
           step: `GOM Order Status (${program})`,
+          description: `oe_order_headers_all & oe_order_lines_all`,
           sourceDb: "GOM",
           status: this.buildGomStep(programGomRows).status,
           eventTime: toIso(latestTime(programGomRows, ["LINE_CREATION_DATE", "CREATION_DATE"])),
@@ -398,6 +405,7 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
       // No split - add regular filewheel (non-SSP) step
       journeySteps.push({
         step: "GVI Filewheel (non-SSP)",
+        description: "GVI processing step",
         sourceDb: "GVI",
         status: computed.gvi_filewheel_normal.status,
         eventTime: toIso(computed.gvi_filewheel_normal.eventTime),
@@ -409,6 +417,7 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
       // No split - add regular internal steps
       journeySteps.push({
         step: "GVI Internal (GVI Validation)",
+        description: "GVI processing step",
         sourceDb: "GVI",
         status: computed.gvi_internal_inbound.status,
         eventTime: toIso(computed.gvi_internal_inbound.eventTime),
@@ -419,6 +428,7 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
 
       journeySteps.push({
         step: "GVI Internal (GVI Outbound)",
+        description: "GVI processing step",
         sourceDb: "GVI",
         status: computed.gvi_internal_outbound.status,
         eventTime: toIso(computed.gvi_internal_outbound.eventTime),
@@ -430,6 +440,7 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
       // No split - add single GOM step
       journeySteps.push({
         step: "GOM Order Status",
+        description: "GOM processing step",
         sourceDb: "GOM",
         status: computed.gom_order_statas.status,
         eventTime: toIso(computed.gom_order_statas.eventTime),
@@ -492,14 +503,15 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
   }
 
   async searchOrders(query: string): Promise<SearchOrderResult[]> {
-    const likeValue = `%${query}%`;
+    const likeValue = `%${query.trim().toUpperCase()}%`;
 
     const rows = await this.queryGvi(
       `select customer_order_reference_nbr, file_name, max(last_update_date) as last_update_date
        from gvimgr.gvi_filewheel_order_int_ssp_v
-       where customer_order_reference_nbr like :likeValue or file_name like :likeValue
+       where upper(customer_order_reference_nbr) like :likeValue
+         or upper(file_name) like :likeValue
        group by customer_order_reference_nbr, file_name
-       order by max(last_update_date) desc`,
+       order by last_update_date desc`,
       { likeValue }
     );
 

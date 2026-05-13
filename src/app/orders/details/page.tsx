@@ -107,7 +107,7 @@ function mapJourneyStep(step: JourneyStep, allLines: FlowOrderLine[]): Interface
       ? `${step.payload?.stepKey}-${step.payload.program}`
       : String(step.payload?.stepKey || step.step),
     name: step.step,
-    description: `${step.sourceDb} processing step`,
+    description: step.description || `${step.sourceDb} processing step`,
     status: mapStatus(step.status),
     startTime: step.eventTime || undefined,
     endTime: step.eventTime || undefined,
@@ -133,6 +133,7 @@ function getPayloadString(payload: Record<string, unknown>, key: string): string
 function mapOrderLine(line: FlowOrderLine, index: number): OrderLine {
   return {
     id: `${line.stage}-${line.line_number || "unknown"}-${index}`,
+    lineNumber: line.line_number || null,
     itemName: line.item_code || "Unknown item",
     itemCode: line.item_code || "-",
     quantity: line.requested_quantity || 0,

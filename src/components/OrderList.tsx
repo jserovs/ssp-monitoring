@@ -2,18 +2,25 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { Order } from "@/types/orders";
 import { FileText, Search, ChevronUp, ChevronDown } from "lucide-react";
 
 interface OrderListProps {
   orders: Order[];
+  initialQuery: string;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
 }
 
 type SortField = "creationDate" | "customerName";
 type SortDirection = "asc" | "desc";
 
-export function OrderList({ orders }: OrderListProps) {
-  const [searchQuery, setSearchQuery] = useState("");
+export function OrderList({ orders, initialQuery, page, pageSize, hasMore }: OrderListProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [sortField, setSortField] = useState<SortField>("creationDate");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
@@ -31,15 +38,8 @@ export function OrderList({ orders }: OrderListProps) {
     }
   };
 
-  const filteredAndSortedOrders = useMemo(() => {
+  const sortedOrders = useMemo(() => {
     let result = [...orders];
-
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter((order) =>
-        order.orderNumber.toLowerCase().includes(query)
-      );
-    }
 
     result.sort((a, b) => {
       let comparison = 0;
@@ -54,7 +54,42 @@ export function OrderList({ orders }: OrderListProps) {
     });
 
     return result;
-  }, [orders, searchQuery, sortField, sortDirection]);
+  }, [orders, sortField, sortDirection]);
+
+  const updateRoute = (next: { page: number; query: string }) => {
+    const params = new URLSearchParams();
+    if (next.query.trim()) {
+      params.set("query", next.query.trim());
+    }
+    if (next.page > 1) {
+      params.set("page", String(next.page));
+    }
+    if (pageSize !== 50) {
+      params.set("pageSize", String(pageSize));
+    }
+
+    const queryString = params.toString();
+    router.push(queryString ? `${pathname}?${queryString}` : pathname);
+  };
+
+  const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    updateRoute({ page: 1, query: searchQuery });
+  };
+
+  const goToPreviousPage = () => {
+    if (page <= 1) {
+      return;
+    }
+    updateRoute({ page: page - 1, query: initialQuery });
+  };
+
+  const goToNextPage = () => {
+    if (!hasMore) {
+      return;
+    }
+    updateRoute({ page: page + 1, query: initialQuery });
+  };
 
   const SortHeader = ({ field, label }: { field: SortField; label: string }) => (
     <th
@@ -80,18 +115,36 @@ export function OrderList({ orders }: OrderListProps) {
           </p>
         </div>
 
-        <div className="mb-4 flex items-center gap-4">
+        <form className="mb-4 flex items-center gap-3" onSubmit={handleSearchSubmit}>
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by Order Ref..."
+              placeholder="Search by Order Ref or File Name..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             />
           </div>
-        </div>
+          <button
+            type="submit"
+            className="px-4 py-2 rounded-lg border border-indigo-300 bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+          >
+            Search
+          </button>
+          {initialQuery && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery("");
+                updateRoute({ page: 1, query: "" });
+              }}
+              className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Clear
+            </button>
+          )}
+        </form>
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
@@ -118,7 +171,7 @@ export function OrderList({ orders }: OrderListProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filteredAndSortedOrders.map((order) => (
+                {sortedOrders.map((order) => (
                   <tr
                     key={order.id}
                     className="hover:bg-blue-50 cursor-pointer transition-colors duration-150"
@@ -159,19 +212,43 @@ export function OrderList({ orders }: OrderListProps) {
           </div>
         </div>
 
-        {filteredAndSortedOrders.length === 0 && (
+        {sortedOrders.length === 0 && (
           <div className="mt-8 text-center p-8 bg-white rounded-lg border border-gray-200">
             <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {searchQuery ? "No matching orders found" : "No orders found"}
+              {initialQuery ? "No matching orders found" : "No orders found"}
             </h3>
             <p className="text-gray-500">
-              {searchQuery 
+              {initialQuery 
                 ? "Try adjusting your search query." 
                 : "No SSP orders are currently available in the system."}
             </p>
           </div>
         )}
+
+        <div className="mt-6 flex items-center justify-between gap-4">
+          <div className="text-sm text-gray-600">
+            Page {page}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={goToPreviousPage}
+              disabled={page <= 1}
+              className="px-3 py-2 rounded-md border border-gray-300 bg-white text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              onClick={goToNextPage}
+              disabled={!hasMore}
+              className="px-3 py-2 rounded-md border border-gray-300 bg-white text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

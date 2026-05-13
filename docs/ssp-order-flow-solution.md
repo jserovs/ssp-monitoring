@@ -61,16 +61,16 @@ Status mapping from `PROCESS_FLAG`:
 
 ### 3.3 Query strategy (aligned with AGENT.md)
 Use the exact checkpoints:
-- `gvi_filewheel_order_int_ssp_v` with `program = 'SSP'`
-- `gvi_filewheel_order_int_ssp_v` with `program <> 'SSP'`
-- `gvi_internal_order_int_ssp_v` with `direction is null`
-- `gvi_internal_order_int_ssp_v` with `direction = 'OUTBOUND'`
-- `oe_order_headers_all` + `oe_order_lines_all` in GOM
+- View `gvimgr.gvi_filewheel_order_int_ssp_v` with `program = 'SSP'`
+- View `gvimgr.gvi_filewheel_order_int_ssp_v` with `program <> 'SSP'`
+- View `gvimgr.gvi_internal_order_int_ssp_v` with `direction is null`
+- View `gvimgr.gvi_internal_order_int_ssp_v` with `direction = 'OUTBOUND'`
+- Tables `oe_order_headers_all` + `oe_order_lines_all` in GOM
 
 ### 3.4 Performance and reliability
-- Add indexes for test/prod parity:
-  - `gvi_filewheel_order_int_ssp_v(customer_order_reference_nbr, file_name, program, process_flag)`
-  - `gvi_internal_order_int_ssp_v(customer_order_reference_nbr, direction, process_flag)`
+- Add indexes on underlying base tables for test/prod parity (views are not directly indexed):
+  - Base tables behind `gvimgr.gvi_filewheel_order_int_ssp_v` for `(customer_order_reference_nbr, file_name, program, process_flag)`
+  - Base tables behind `gvimgr.gvi_internal_order_int_ssp_v` for `(customer_order_reference_nbr, direction, process_flag)`
   - `oe_order_headers_all(cust_po_number)`
   - `oe_order_lines_all(header_id)`
 - API timeout + graceful partial response if one DB is down
