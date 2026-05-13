@@ -16,10 +16,7 @@ WORKDIR /app
 COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* .npmrc* ./
 
 # Install project dependencies with frozen lockfile for reproducible builds
-RUN --mount=type=cache,target=/root/.npm \
-    --mount=type=cache,target=/usr/local/share/.cache/yarn \
-    --mount=type=cache,target=/root/.local/share/pnpm/store \
-  if [ -f package-lock.json ]; then \
+RUN if [ -f package-lock.json ]; then \
     npm ci --no-audit --no-fund; \
   elif [ -f yarn.lock ]; then \
     corepack enable yarn && yarn install --frozen-lockfile --production=false; \
@@ -52,8 +49,7 @@ ENV NODE_ENV=production
 # ENV NEXT_TELEMETRY_DISABLED=1
 
 # Build Next.js application
-RUN --mount=type=cache,target=/app/.next/cache \
-  if [ -f package-lock.json ]; then \
+RUN if [ -f package-lock.json ]; then \
     npm run build; \
   elif [ -f yarn.lock ]; then \
     corepack enable yarn && yarn build; \
