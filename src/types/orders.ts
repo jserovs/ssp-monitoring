@@ -14,6 +14,9 @@ export interface InterfaceStep {
   name: string;
   description: string;
   status: "pending" | "processing" | "completed" | "error" | "warning";
+  statusLabel?: string;
+  orderNumberLabel?: string;
+  invoiceNumberLabel?: string;
   startTime?: string;
   endTime?: string;
   duration?: string;

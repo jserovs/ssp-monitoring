@@ -58,11 +58,17 @@ export async function GET(request: Request) {
       gomPool,
     });
 
-    const orders = await repository.getAllOrders({
-      limit,
-      offset,
-      query: query || undefined,
-    });
+    const [orders, total] = await Promise.all([
+      repository.getAllOrders({
+        limit,
+        offset,
+        query: query || undefined,
+      }),
+      repository.getAllOrdersCount(query || undefined),
+    ]);
+
+    const page = Math.floor(offset / limit) + 1;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
 
     return NextResponse.json({
       data: orders,
@@ -70,6 +76,9 @@ export async function GET(request: Request) {
         limit,
         offset,
         returned: orders.length,
+        total,
+        page,
+        totalPages,
       },
     });
   } catch (error) {

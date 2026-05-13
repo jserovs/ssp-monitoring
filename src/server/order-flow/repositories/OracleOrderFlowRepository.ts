@@ -47,7 +47,7 @@ const JOURNEY_STEPS: JourneyStepDef[] = [
   { key: "gvi_filewheel_normal", name: "GVI Filewheel (After Split)", sourceDb: "GVI" },
   { key: "gvi_internal_inbound", name: "GVI Internal (GVI Validation)", sourceDb: "GVI" },
   { key: "gvi_internal_outbound", name: "GVI Internal (GVI Outbound)", sourceDb: "GVI" },
-  { key: "gom_order_statas", name: "GOM Order Status", sourceDb: "GOM" },
+  { key: "gom_order_status", name: "GOM Order Status", sourceDb: "GOM" },
 ];
 
 export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
@@ -112,6 +112,41 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
     );
 
     return rows.map((row) => mapOrderListRow(row));
+  }
+
+  async getAllOrdersCount(query?: string): Promise<number> {
+    const trimmedQuery = query?.trim();
+
+    if (trimmedQuery) {
+      const likeValue = `%${trimmedQuery.toUpperCase()}%`;
+      const rows = await this.queryGvi(
+        `select count(*) as total_count
+         from (
+           select customer_order_reference_nbr, file_name
+           from gvimgr.gvi_filewheel_order_int_ssp_v
+           where upper(customer_order_reference_nbr) like :likeValue
+              or upper(file_name) like :likeValue
+           group by customer_order_reference_nbr, file_name
+         )`,
+        { likeValue }
+      );
+
+      const total = toNum(rows[0]?.TOTAL_COUNT);
+      return total ?? 0;
+    }
+
+    const rows = await this.queryGvi(
+      `select count(*) as total_count
+       from (
+         select customer_order_reference_nbr, file_name
+         from gvimgr.gvi_filewheel_order_int_ssp_v
+         group by customer_order_reference_nbr, file_name
+       )`,
+      {}
+    );
+
+    const total = toNum(rows[0]?.TOTAL_COUNT);
+    return total ?? 0;
   }
 
   async getOrderDetails(trackingKey: OrderTrackingKey): Promise<OrderDetails | null> {
@@ -225,12 +260,28 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
     const gomLookup = buildGomLookup(bindParams, outboundRows);
     const gomRows = gomLookup
       ? await this.queryGom(
-          `select distinct oeoh.creation_date as creation_date, oeol.creation_date as line_creation_date, oeoh.flow_status_code as flow_status_code, oeoh.attribute13 as attribute13
+          `select distinct oeoh.creation_date as creation_date, oeol.creation_date as line_creation_date, oeoh.flow_status_code as flow_status_code, oeoh.attribute13 as attribute13, oeoh.order_number as order_number
            from oe_order_headers_all oeoh
            join oe_order_lines_all oeol on oeoh.header_id = oeol.header_id
            where oeoh.cust_po_number = :customer_order_reference_nbr
              and oeoh.orig_sys_document_ref in (${gomLookup.origSysDocumentRefPlaceholders.join(", ")})`,
           gomLookup.bindParams
+        )
+      : [];
+
+    const gomInvoiceLookup = buildGomInvoiceLookup(gomRows);
+    const gomInvoiceRows = gomInvoiceLookup
+      ? await this.queryGom(
+          `select distinct rcta.creation_date as creation_date,
+                  rctla.creation_date as line_creation_date,
+                  rcta.customer_trx_id as customer_trx_id,
+                  rcta.trx_number as trx_number,
+                  rcta.complete_flag as complete_flag,
+                  rcta.interface_header_attribute1 as interface_header_attribute1
+           from ra_customer_trx_all rcta
+           join ra_customer_trx_lines_all rctla on rcta.customer_trx_id = rctla.customer_trx_id
+           where rcta.interface_header_attribute1 in (${gomInvoiceLookup.orderNumberPlaceholders.join(", ")})`,
+          gomInvoiceLookup.bindParams
         )
       : [];
 
@@ -263,10 +314,16 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
       gvi_filewheel_normal: this.buildStep(nonSspRows),
       gvi_internal_inbound: this.buildStep(inboundRows),
       gvi_internal_outbound: this.buildStep(outboundRows),
-      gom_order_statas: {
+      gom_order_status: {
         status: this.buildGomStep(gomRows).status,
-        eventTime: latestTime(gomRows, ["LINE_CREATION_DATE", "CREATION_DATE"]),
+        eventTime: latestTime(gomRows, ["CREATION_DATE"]),
         lineCount: gomRows.length,
+        errorCode: null,
+      },
+      gom_invoice_status: {
+        status: this.buildGomInvoiceStep(gomInvoiceRows).status,
+        eventTime: latestTime(gomInvoiceRows, ["CREATION_DATE"]),
+        lineCount: gomInvoiceRows.length,
         errorCode: null,
       },
     };
@@ -295,7 +352,6 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
     //   lineCount: computed.file_received.lineCount,
     //   errorCode: computed.file_received.errorCode,
     //   payload: { stepKey: "file_received" },
-    //   unimplemented: true,
     // });
 
     // journeySteps.push({
@@ -395,10 +451,41 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
           description: `oe_order_headers_all & oe_order_lines_all`,
           sourceDb: "GOM",
           status: this.buildGomStep(programGomRows).status,
-          eventTime: toIso(latestTime(programGomRows, ["LINE_CREATION_DATE", "CREATION_DATE"])),
+          eventTime: toIso(latestTime(programGomRows, ["CREATION_DATE"])),
           lineCount: programGomRows.length,
           errorCode: null,
-          payload: { stepKey: "gom_order_statas", program },
+          payload: {
+            stepKey: "gom_order_status",
+            program,
+            flowStatusCode: latestGomFlowStatusCode(programGomRows),
+            orderNumber: latestGomOrderNumber(programGomRows),
+          },
+        });
+
+        const programOrderNumbers = new Set(
+          programGomRows
+            .map((row) => toStr(row.ORDER_NUMBER))
+            .filter((value): value is string => Boolean(value))
+        );
+        const programInvoiceRows = gomInvoiceRows.filter((row) => {
+          const linkedOrderNumber = toStr(row.INTERFACE_HEADER_ATTRIBUTE1);
+          return linkedOrderNumber ? programOrderNumbers.has(linkedOrderNumber) : false;
+        });
+
+        journeySteps.push({
+          step: `GOM Invoice Status (${program})`,
+          description: "ra_customer_trx_all  ra_customer_trx_lines_all",
+          sourceDb: "GOM",
+          status: this.buildGomInvoiceStep(programInvoiceRows).status,
+          eventTime: toIso(latestTime(programInvoiceRows, ["CREATION_DATE"])),
+          lineCount: programInvoiceRows.length,
+          errorCode: null,
+          payload: {
+            stepKey: "gom_invoice_status",
+            program,
+            flowStatusCode: latestGomInvoiceStatusLabel(programInvoiceRows),
+            invoiceNumber: latestGomInvoiceNumber(programInvoiceRows),
+          },
         });
       }
     } else {
@@ -442,11 +529,30 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
         step: "GOM Order Status",
         description: "GOM processing step",
         sourceDb: "GOM",
-        status: computed.gom_order_statas.status,
-        eventTime: toIso(computed.gom_order_statas.eventTime),
-        lineCount: computed.gom_order_statas.lineCount,
-        errorCode: computed.gom_order_statas.errorCode,
-        payload: { stepKey: "gom_order_statas" },
+        status: computed.gom_order_status.status,
+        eventTime: toIso(computed.gom_order_status.eventTime),
+        lineCount: computed.gom_order_status.lineCount,
+        errorCode: computed.gom_order_status.errorCode,
+        payload: {
+          stepKey: "gom_order_status",
+          flowStatusCode: latestGomFlowStatusCode(gomRows),
+          orderNumber: latestGomOrderNumber(gomRows),
+        },
+      });
+
+      journeySteps.push({
+        step: "GOM Invoice Status",
+        description: "ra_customer_trx_all  ra_customer_trx_lines_all",
+        sourceDb: "GOM",
+        status: computed.gom_invoice_status.status,
+        eventTime: toIso(computed.gom_invoice_status.eventTime),
+        lineCount: computed.gom_invoice_status.lineCount,
+        errorCode: computed.gom_invoice_status.errorCode,
+        payload: {
+          stepKey: "gom_invoice_status",
+          flowStatusCode: latestGomInvoiceStatusLabel(gomInvoiceRows),
+          invoiceNumber: latestGomInvoiceNumber(gomInvoiceRows),
+        },
       });
     }
 
@@ -456,7 +562,15 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
   async getOrderLines(trackingKey: OrderTrackingKey): Promise<OrderLine[]> {
     const bindParams = toBindParams(trackingKey);
     const internalCorrelationClause = buildInternalFilewheelCorrelationClause("internal_rows");
-    const [internalRows, filewheelRows] = await Promise.all([
+    const [outboundRows, internalRows, filewheelRows] = await Promise.all([
+      this.queryGvi(
+        `select internal_rows.subs_order_number_from
+         from gvimgr.gvi_internal_order_int_ssp_v internal_rows
+         where internal_rows.customer_order_reference_nbr = :customer_order_reference_nbr
+           and internal_rows.direction = 'OUTBOUND'
+           and ${internalCorrelationClause}`,
+        bindParams
+      ),
       this.queryGvi(
         `select internal_rows.program, internal_rows.direction, internal_rows.line_number, internal_rows.process_flag, internal_rows.error_code, internal_rows.item_code, internal_rows.requested_quantity, internal_rows.last_update_date
          from gvimgr.gvi_internal_order_int_ssp_v internal_rows
@@ -474,6 +588,24 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
         bindParams
       ),
     ]);
+
+    const gomLookup = buildGomLookup(bindParams, outboundRows);
+    const gomLineRows = gomLookup
+      ? await this.queryGom(
+          `select distinct
+              oeol.line_number as line_number,
+              oeol.ordered_item as item_code,
+              oeol.ordered_quantity as requested_quantity,
+              oeol.flow_status_code as flow_status_code,
+              oeol.last_update_date as last_update_date,
+              oeoh.attribute13 as attribute13
+           from oe_order_headers_all oeoh
+           join oe_order_lines_all oeol on oeoh.header_id = oeol.header_id
+           where oeoh.cust_po_number = :customer_order_reference_nbr
+             and oeoh.orig_sys_document_ref in (${gomLookup.origSysDocumentRefPlaceholders.join(", ")})`,
+          gomLookup.bindParams
+        )
+      : [];
 
     const internalLines = internalRows.map((row) => ({
       stage: "GVI_INTERNAL" as const,
@@ -499,7 +631,19 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
       last_update_date: toIso(row.LAST_UPDATE_DATE),
     }));
 
-    return [...internalLines, ...filewheelLines];
+    const gomLines = gomLineRows.map((row) => ({
+      stage: "GOM_ORDER" as const,
+      program: extractProgramFromAttribute13(row.ATTRIBUTE13),
+      direction: null,
+      line_number: toStr(row.LINE_NUMBER),
+      process_flag: mapGomLineStatusToProcessFlag(toStr(row.FLOW_STATUS_CODE)),
+      error_code: null,
+      item_code: toStr(row.ITEM_CODE),
+      requested_quantity: toNum(row.REQUESTED_QUANTITY),
+      last_update_date: toIso(row.LAST_UPDATE_DATE),
+    }));
+
+    return [...internalLines, ...filewheelLines, ...gomLines];
   }
 
   async searchOrders(query: string): Promise<SearchOrderResult[]> {
@@ -578,6 +722,24 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
     const allClosed = flowStatuses.length > 0 && flowStatuses.every((status) => status === "CLOSED");
     return {
       status: allClosed ? ("Completed" as const) : ("In Progress" as const),
+    };
+  }
+
+  private buildGomInvoiceStep(rows: Array<Record<string, unknown>>) {
+    if (rows.length === 0) {
+      return {
+        status: "Not Reached" as const,
+      };
+    }
+
+    const completeFlags = rows
+      .map((row) => toStr(row.COMPLETE_FLAG))
+      .filter((value): value is string => Boolean(value))
+      .map((value) => value.toUpperCase());
+
+    const allComplete = completeFlags.length > 0 && completeFlags.every((flag) => flag === "Y");
+    return {
+      status: allComplete ? ("Completed" as const) : ("In Progress" as const),
     };
   }
 }
@@ -670,6 +832,32 @@ function buildGomLookup(
   };
 }
 
+function buildGomInvoiceLookup(
+  gomRows: Array<Record<string, unknown>>
+): { bindParams: Record<string, unknown>; orderNumberPlaceholders: string[] } | null {
+  const orderNumbers = [...new Set(
+    gomRows
+      .map((row) => toStr(row.ORDER_NUMBER))
+      .filter((value): value is string => Boolean(value))
+  )];
+
+  if (orderNumbers.length === 0) {
+    return null;
+  }
+
+  const bindParams: Record<string, unknown> = {};
+  const orderNumberPlaceholders = orderNumbers.map((value, index) => {
+    const bindName = `invoice_order_number_${index}`;
+    bindParams[bindName] = value;
+    return `:${bindName}`;
+  });
+
+  return {
+    bindParams,
+    orderNumberPlaceholders,
+  };
+}
+
 function buildInternalFilewheelCorrelationClause(internalAlias: string): string {
   return `exists (
     select 1
@@ -693,6 +881,127 @@ function extractProgramFromAttribute13(value: unknown): string | null {
   }
 
   return match[1].trim().toUpperCase();
+}
+
+function latestGomFlowStatusCode(rows: Array<Record<string, unknown>>): string | null {
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const sorted = [...rows].sort((a, b) => {
+    const aTime = toSortableTime(a.CREATION_DATE);
+    const bTime = toSortableTime(b.CREATION_DATE);
+    return bTime - aTime;
+  });
+
+  for (const row of sorted) {
+    const status = toStr(row.FLOW_STATUS_CODE);
+    if (status) {
+      return status;
+    }
+  }
+
+  return null;
+}
+
+function latestGomOrderNumber(rows: Array<Record<string, unknown>>): string | null {
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const sorted = [...rows].sort((a, b) => {
+    const aTime = toSortableTime(a.CREATION_DATE);
+    const bTime = toSortableTime(b.CREATION_DATE);
+    return bTime - aTime;
+  });
+
+  for (const row of sorted) {
+    const orderNumber = toStr(row.ORDER_NUMBER);
+    if (orderNumber) {
+      return orderNumber;
+    }
+  }
+
+  return null;
+}
+
+function latestGomInvoiceStatusLabel(rows: Array<Record<string, unknown>>): string | null {
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const sorted = [...rows].sort((a, b) => {
+    const aTime = toSortableTime(a.CREATION_DATE);
+    const bTime = toSortableTime(b.CREATION_DATE);
+    return bTime - aTime;
+  });
+
+  for (const row of sorted) {
+    const completeFlag = toStr(row.COMPLETE_FLAG)?.toUpperCase();
+    if (completeFlag === "Y") {
+      return "COMPLETE";
+    }
+    if (completeFlag) {
+      return "INCOMPLETE";
+    }
+  }
+
+  return null;
+}
+
+function latestGomInvoiceNumber(rows: Array<Record<string, unknown>>): string | null {
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const sorted = [...rows].sort((a, b) => {
+    const aTime = toSortableTime(a.CREATION_DATE);
+    const bTime = toSortableTime(b.CREATION_DATE);
+    return bTime - aTime;
+  });
+
+  for (const row of sorted) {
+    const trxNumber = toStr(row.TRX_NUMBER);
+    if (trxNumber) {
+      return trxNumber;
+    }
+  }
+
+  return null;
+}
+
+function toSortableTime(value: unknown): number {
+  if (value instanceof Date) {
+    return value.getTime();
+  }
+
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
+
+  if (typeof value === "number") {
+    return value;
+  }
+
+  return 0;
+}
+
+function mapGomLineStatusToProcessFlag(flowStatusCode: string | null): string | null {
+  const status = (flowStatusCode || "").toUpperCase();
+  if (!status) {
+    return null;
+  }
+
+  if (status === "CLOSED") {
+    return "P";
+  }
+
+  if (status.includes("CANCEL") || status.includes("ERROR")) {
+    return "E";
+  }
+
+  return "X";
 }
 
 // Customer name lookup - can be replaced with database query later

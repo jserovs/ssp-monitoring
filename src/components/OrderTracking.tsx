@@ -234,8 +234,20 @@ export function OrderTracking({ order }: OrderTrackingProps) {
                             <div className="flex gap-4 mt-3">
                               <div className="bg-white/60 rounded-lg px-3 py-2 border border-gray-200">
                                 <div className="text-xs text-gray-500">Status</div>
-                                <div className={`mt-1 ${colors.text} capitalize`}>{step.status}</div>
+                                <div className={`mt-1 ${colors.text}`}>{step.statusLabel || step.status}</div>
                               </div>
+                              {step.orderNumberLabel && (
+                                <div className="bg-white/60 rounded-lg px-3 py-2 border border-gray-200">
+                                  <div className="text-xs text-gray-500">Order Number</div>
+                                  <div className="mt-1 text-sm text-gray-900">{step.orderNumberLabel}</div>
+                                </div>
+                              )}
+                              {step.invoiceNumberLabel && (
+                                <div className="bg-white/60 rounded-lg px-3 py-2 border border-gray-200">
+                                  <div className="text-xs text-gray-500">Invoice Number</div>
+                                  <div className="mt-1 text-sm text-gray-900">{step.invoiceNumberLabel}</div>
+                                </div>
+                              )}
                               {step.startTime && (
                                 <div className="bg-white/60 rounded-lg px-3 py-2 border border-gray-200">
                                   <div className="text-xs text-gray-500">Time</div>

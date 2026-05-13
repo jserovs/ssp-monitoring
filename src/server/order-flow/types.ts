@@ -76,6 +76,7 @@ export interface OrderDetails {
 
 export interface OrderFlowRepository {
   getAllOrders(options?: GetAllOrdersOptions): Promise<OrderListItem[]>;
+  getAllOrdersCount(query?: string): Promise<number>;
   getOrderDetails(trackingKey: OrderTrackingKey): Promise<OrderDetails | null>;
   getJourney(trackingKey: OrderTrackingKey): Promise<JourneyStep[]>;
   getOrderLines(trackingKey: OrderTrackingKey): Promise<OrderLine[]>;

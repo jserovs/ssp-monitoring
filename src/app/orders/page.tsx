@@ -8,12 +8,18 @@ interface OrdersApiResponse {
     limit: number;
     offset: number;
     returned: number;
+    total: number;
+    page: number;
+    totalPages: number;
   };
 }
 
 interface GetOrdersResult {
   orders: Order[];
   returned: number;
+  total: number;
+  page: number;
+  totalPages: number;
 }
 
 async function getOrders(options: { query?: string; limit: number; offset: number }): Promise<GetOrdersResult> {
@@ -61,12 +67,18 @@ async function getOrders(options: { query?: string; limit: number; offset: numbe
     return {
       orders,
       returned: data.paging?.returned ?? orders.length,
+      total: data.paging?.total ?? orders.length,
+      page: data.paging?.page ?? 1,
+      totalPages: data.paging?.totalPages ?? 1,
     };
   } catch (error) {
     console.error("Error fetching orders:", error);
     return {
       orders: [],
       returned: 0,
+      total: 0,
+      page: 1,
+      totalPages: 1,
     };
   }
 }
@@ -114,13 +126,11 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
   const query = resolvedSearchParams.query?.trim() || undefined;
   const offset = (page - 1) * pageSize;
 
-  const { orders, returned } = await getOrders({
+  const { orders, total, totalPages } = await getOrders({
     query,
     limit: pageSize,
     offset,
   });
-
-  const hasMore = returned === pageSize;
 
   return (
     <OrderList
@@ -128,7 +138,8 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
       initialQuery={query || ""}
       page={page}
       pageSize={pageSize}
-      hasMore={hasMore}
+      total={total}
+      totalPages={totalPages}
     />
   );
 }

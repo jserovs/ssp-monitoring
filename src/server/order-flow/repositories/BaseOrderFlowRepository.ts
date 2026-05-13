@@ -12,6 +12,8 @@ import type {
 export abstract class BaseOrderFlowRepository implements OrderFlowRepository {
   abstract getAllOrders(options?: GetAllOrdersOptions): Promise<OrderListItem[]>;
 
+  abstract getAllOrdersCount(query?: string): Promise<number>;
+
   abstract getOrderDetails(trackingKey: OrderTrackingKey): Promise<OrderDetails | null>;
 
   abstract getJourney(trackingKey: OrderTrackingKey): Promise<JourneyStep[]>;

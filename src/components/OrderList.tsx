@@ -11,13 +11,14 @@ interface OrderListProps {
   initialQuery: string;
   page: number;
   pageSize: number;
-  hasMore: boolean;
+  total: number;
+  totalPages: number;
 }
 
 type SortField = "creationDate" | "customerName";
 type SortDirection = "asc" | "desc";
 
-export function OrderList({ orders, initialQuery, page, pageSize, hasMore }: OrderListProps) {
+export function OrderList({ orders, initialQuery, page, pageSize, total, totalPages }: OrderListProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState(initialQuery);
@@ -85,7 +86,7 @@ export function OrderList({ orders, initialQuery, page, pageSize, hasMore }: Ord
   };
 
   const goToNextPage = () => {
-    if (!hasMore) {
+    if (page >= totalPages) {
       return;
     }
     updateRoute({ page: page + 1, query: initialQuery });
@@ -145,6 +146,30 @@ export function OrderList({ orders, initialQuery, page, pageSize, hasMore }: Ord
             </button>
           )}
         </form>
+
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <div className="text-sm text-gray-600">
+            Page {page} of {totalPages} ({total} total)
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={goToPreviousPage}
+              disabled={page <= 1}
+              className="px-3 py-2 rounded-md border border-gray-300 bg-white text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              onClick={goToNextPage}
+              disabled={page >= totalPages}
+              className="px-3 py-2 rounded-md border border-gray-300 bg-white text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
@@ -228,7 +253,7 @@ export function OrderList({ orders, initialQuery, page, pageSize, hasMore }: Ord
 
         <div className="mt-6 flex items-center justify-between gap-4">
           <div className="text-sm text-gray-600">
-            Page {page}
+            Page {page} of {totalPages} ({total} total)
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -242,7 +267,7 @@ export function OrderList({ orders, initialQuery, page, pageSize, hasMore }: Ord
             <button
               type="button"
               onClick={goToNextPage}
-              disabled={!hasMore}
+              disabled={page >= totalPages}
               className="px-3 py-2 rounded-md border border-gray-300 bg-white text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
             >
               Next

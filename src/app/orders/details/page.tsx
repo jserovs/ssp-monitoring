@@ -74,6 +74,9 @@ function mapOrderResponse(data: ApiOrderDetails): Order {
 function mapJourneyStep(step: JourneyStep, allLines: FlowOrderLine[]): InterfaceStep {
   const stepKey = step.payload?.stepKey as string | undefined;
   const program = step.payload?.program as string | undefined;
+  const flowStatusCode = getPayloadString(step.payload, "flowStatusCode");
+  const orderNumber = getPayloadString(step.payload, "orderNumber");
+  const invoiceNumber = getPayloadString(step.payload, "invoiceNumber");
   const isInternalStep = stepKey === "gvi_internal_inbound" || stepKey === "gvi_internal_outbound";
 
   let stepLines: FlowOrderLine[] = [];
@@ -98,6 +101,10 @@ function mapJourneyStep(step: JourneyStep, allLines: FlowOrderLine[]): Interface
     stepLines = allLines.filter((line) => line.stage === "GVI_FILEWHEEL" && line.program === program);
   } else if (stepKey === "gvi_filewheel_normal") {
     stepLines = allLines.filter((line) => line.stage === "GVI_FILEWHEEL" && line.program !== "SSP");
+  } else if (stepKey === "gom_order_status" && program) {
+    stepLines = allLines.filter((line) => line.stage === "GOM_ORDER" && line.program === program);
+  } else if (stepKey === "gom_order_status") {
+    stepLines = allLines.filter((line) => line.stage === "GOM_ORDER");
   }
 
   const lines = stepLines.map((line, index) => mapOrderLine(line, index));
@@ -109,6 +116,9 @@ function mapJourneyStep(step: JourneyStep, allLines: FlowOrderLine[]): Interface
     name: step.step,
     description: step.description || `${step.sourceDb} processing step`,
     status: mapStatus(step.status),
+    statusLabel: step.sourceDb === "GOM" ? flowStatusCode : undefined,
+    orderNumberLabel: stepKey === "gom_order_status" ? orderNumber || undefined : undefined,
+    invoiceNumberLabel: stepKey === "gom_invoice_status" ? invoiceNumber || undefined : undefined,
     startTime: step.eventTime || undefined,
     endTime: step.eventTime || undefined,
     duration: undefined,
