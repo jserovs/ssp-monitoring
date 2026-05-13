@@ -21,7 +21,7 @@ RUN if [ -f package-lock.json ]; then \
   elif [ -f yarn.lock ]; then \
     corepack enable yarn && yarn install --frozen-lockfile --production=false; \
   elif [ -f pnpm-lock.yaml ]; then \
-    corepack enable pnpm && pnpm install --frozen-lockfile; \
+    corepack enable pnpm && pnpm install --frozen-lockfile --config.strict-dep-builds=false; \
   else \
     echo "No lockfile found." && exit 1; \
   fi
