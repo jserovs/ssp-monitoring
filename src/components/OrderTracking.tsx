@@ -179,8 +179,8 @@ export function OrderTracking({ order }: OrderTrackingProps) {
             if (splitIndex > -1) {
               const afterSplit = visibleSteps.slice(splitIndex + 1);
               for (const step of afterSplit) {
-                const programMatch = step.name.match(/\(([A-Z0-9]+)\)$/);
-                const program = programMatch ? programMatch[1] : "";
+                const programMatch = step.name.match(/\(([^)]+)\)$/);
+                const program = step.program || (programMatch ? programMatch[1] : "");
                 if (!program) {
                   postSplitSteps.push(step);
                   continue;

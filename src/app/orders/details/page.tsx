@@ -115,6 +115,7 @@ function mapJourneyStep(step: JourneyStep, allLines: FlowOrderLine[]): Interface
       : String(step.payload?.stepKey || step.step),
     name: step.step,
     description: step.description || `${step.sourceDb} processing step`,
+    program: program || undefined,
     status: mapStatus(step.status),
     statusLabel: step.sourceDb === "GOM" ? flowStatusCode : undefined,
     orderNumberLabel: stepKey === "gom_order_status" ? orderNumber || undefined : undefined,

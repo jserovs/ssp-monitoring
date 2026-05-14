@@ -261,8 +261,8 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
     const gomRows = gomLookup
       ? await this.queryGom(
           `select distinct oeoh.creation_date as creation_date, oeol.creation_date as line_creation_date, oeoh.flow_status_code as flow_status_code, oeoh.attribute13 as attribute13, oeoh.order_number as order_number
-           from oe_order_headers_all oeoh
-           join oe_order_lines_all oeol on oeoh.header_id = oeol.header_id
+           from apps.oe_order_headers_all oeoh
+           join apps.oe_order_lines_all oeol on oeoh.header_id = oeol.header_id
            where oeoh.cust_po_number = :customer_order_reference_nbr
              and oeoh.orig_sys_document_ref in (${gomLookup.origSysDocumentRefPlaceholders.join(", ")})`,
           gomLookup.bindParams
@@ -278,8 +278,8 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
                   rcta.trx_number as trx_number,
                   rcta.complete_flag as complete_flag,
                   rcta.interface_header_attribute1 as interface_header_attribute1
-           from ra_customer_trx_all rcta
-           join ra_customer_trx_lines_all rctla on rcta.customer_trx_id = rctla.customer_trx_id
+           from apps.ra_customer_trx_all rcta
+           join apps.ra_customer_trx_lines_all rctla on rcta.customer_trx_id = rctla.customer_trx_id
            where rcta.interface_header_attribute1 in (${gomInvoiceLookup.orderNumberPlaceholders.join(", ")})`,
           gomInvoiceLookup.bindParams
         )
@@ -599,8 +599,8 @@ export class OracleOrderFlowRepository extends BaseOrderFlowRepository {
               oeol.flow_status_code as flow_status_code,
               oeol.last_update_date as last_update_date,
               oeoh.attribute13 as attribute13
-           from oe_order_headers_all oeoh
-           join oe_order_lines_all oeol on oeoh.header_id = oeol.header_id
+           from apps.oe_order_headers_all oeoh
+           join apps.oe_order_lines_all oeol on oeoh.header_id = oeol.header_id
            where oeoh.cust_po_number = :customer_order_reference_nbr
              and oeoh.orig_sys_document_ref in (${gomLookup.origSysDocumentRefPlaceholders.join(", ")})`,
           gomLookup.bindParams

@@ -13,6 +13,7 @@ export interface InterfaceStep {
   id: string;
   name: string;
   description: string;
+  program?: string;
   status: "pending" | "processing" | "completed" | "error" | "warning";
   statusLabel?: string;
   orderNumberLabel?: string;
